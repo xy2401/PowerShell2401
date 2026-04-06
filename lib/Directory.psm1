@@ -82,4 +82,42 @@ function Get-Directory-Depth {
     return $targetDirs
 }
 
-Export-ModuleMember -Function Create-Directories, Get-Directory-Depth
+<#
+.SYNOPSIS
+    递归删除指定目录下的所有空目录。
+
+.DESCRIPTION
+    该函数递归扫描指定目录，自底向上删除其中不包含任何文件或子目录的空文件夹。
+    它对于清理由于提前预建目录结构而产生的冗余空文件夹非常有用。
+
+.PARAMETER Path
+    要处理的目标根目录的路径。不会删除根目录本身。
+#>
+function Remove-EmptyDirectories {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
+        return
+    }
+
+    # 获取所有子目录，然后按照路径长度倒序排序（自底向上）
+    $directories = Get-ChildItem -LiteralPath $Path -Directory -Recurse |
+        Sort-Object -Property @{Expression={$_.FullName.Length}; Descending=$true}
+
+    foreach ($dir in $directories) {
+        # 强制获取目录下的所有子项（包含隐藏文件等）
+        $items = Get-ChildItem -LiteralPath $dir.FullName -Force
+        if ($null -eq $items -or $items.Count -eq 0) {
+            try {
+                Remove-Item -LiteralPath $dir.FullName -Force -Recurse:$false
+            } catch {
+                Write-Warning "无法删除空目录: $($dir.FullName), 错误: $($_.Exception.Message)"
+            }
+        }
+    }
+}
+
+Export-ModuleMember -Function Create-Directories, Get-Directory-Depth, Remove-EmptyDirectories
