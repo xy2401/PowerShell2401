@@ -23,7 +23,8 @@
 
 param(
     [int]$Depth = 0,
-    [switch]$Csv
+    [switch]$Csv,
+    [switch]$ExtSummary
 )
 
 $runtime = $global:GlobalConfig.runtime
@@ -44,6 +45,7 @@ if ($Csv) {
 
 # 结果收集器（用于 CSV）
 $allResults = [System.Collections.Generic.List[PSObject]]::new()
+$globalExtStats = @{}
 
 # 1. 获取目标文件夹列表
 Log-Message "Scanning directories (Depth: $Depth, Exclude Hidden Folders)..." -Level Info
@@ -137,6 +139,15 @@ foreach ($dir in $targetDirs) {
                 $stats.NoExtension.Count++
                 $stats.NoExtension.Size += $size
                 continue
+            }
+
+            if ($ExtSummary) {
+                # 统一转为小写以便统计
+                $lowerExt = $ext.ToLower()
+                if (-not $globalExtStats.ContainsKey($lowerExt)) {
+                    $globalExtStats[$lowerExt] = 0
+                }
+                $globalExtStats[$lowerExt]++
             }
 
             # C. 使用 Get-FileType 进行分类
@@ -261,6 +272,48 @@ if ($Csv -and $allResults.Count -gt 0) {
     
     $allResults | Select-Object -Property $finalColOrder | Export-Csv -LiteralPath $finalCsvPath -NoTypeInformation -Encoding utf8BOM
     Log-Message "Export Successful!" -Level Success
+}
+
+# 输出全局扩展名统计汇总
+if ($ExtSummary -and $globalExtStats.Count -gt 0) {
+    Log-Message "`n--- Global Extension Summary ---" -Level Info
+    
+    # 根据 config.json 构建后缀名到大类的映射表
+    $extToCategory = @{}
+    $extConfig = $global:GlobalConfig.extensions.PSObject.Properties
+    foreach ($catProp in $extConfig) {
+        $catName = $catProp.Name
+        foreach ($e in $catProp.Value) {
+            $extToCategory[$e.ToLower()] = $catName
+        }
+    }
+
+    # 将统计结果按照大类进行分组
+    $groupedStats = @{}
+    foreach ($key in $globalExtStats.Keys) {
+        $cat = $extToCategory[$key]
+        if ([string]::IsNullOrWhiteSpace($cat)) {
+            $cat = "Unknown"
+        }
+        
+        if (-not $groupedStats.ContainsKey($cat)) {
+            $groupedStats[$cat] = @{}
+        }
+        $groupedStats[$cat][$key] = $globalExtStats[$key]
+    }
+
+    # 分类打印输出
+    $catOrder = $groupedStats.Keys | Sort-Object
+    foreach ($cat in $catOrder) {
+        Write-Host "[$cat]" -ForegroundColor Green
+        $catExts = $groupedStats[$cat]
+        
+        # 将该大类下的扩展名按数量降序排列
+        $sortedExts = $catExts.GetEnumerator() | Sort-Object Value -Descending
+        foreach ($kv in $sortedExts) {
+            Write-Host ("  .{0,-10} : {1}" -f $kv.Key, $kv.Value) -ForegroundColor Cyan
+        }
+    }
 }
 
 Log-Message "`nScan Complete." -Level Success
