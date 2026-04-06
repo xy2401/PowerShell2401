@@ -4,7 +4,9 @@ param()
 $EnvVarName = "pw2401_home"
 # 获取持久化的环境变量值
 $CurrentHome = [Environment]::GetEnvironmentVariable($EnvVarName, [EnvironmentVariableTarget]::User)
-$TargetHome = $env:PW2401_ROOT
+ 
+$runtime = $global:GlobalConfig.runtime
+$TargetHome = $runtime.ProjectRoot
 
 if ($null -ne $CurrentHome) {
     # --- Uninstall ---
