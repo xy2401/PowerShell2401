@@ -14,14 +14,16 @@ if ($null -ne $CurrentHome) {
 
     # 1. 从用户注册表的 Path 中移除
     $Path = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User)
-    Log-Message "Old User PATH (Registry): $Path" -Level Info
     $PathEntries = $Path -split ";" | Where-Object { 
-        $_ -ne "%$EnvVarName%" -and $_ -ne "%$EnvVarName%\scripts" -and $_ -ne $CurrentHome -and $_ -ne (Join-Path $CurrentHome "scripts")
+        $_ -ne "%$EnvVarName%" -and $_ -ne $CurrentHome
     }
-    $NewPath = ($PathEntries | Where-Object { $_ -ne "" }) -join ";"
+    $NewPath = @($PathEntries | Where-Object { $_ -ne "" }) -join ";"
     
     if ($Path -ne $NewPath) {
-        Log-Message "Updating User PATH (Registry) to: $NewPath" -Level Info
+        Log-Message "Registry PATH Update: Backing up old path to pw2401_old_path" -Level Info
+        Log-Message "Old PATH: $Path" -Level Info
+        Log-Message "New PATH: $NewPath" -Level Success
+        [Environment]::SetEnvironmentVariable("pw2401_old_path", $Path, [EnvironmentVariableTarget]::User)
         [Environment]::SetEnvironmentVariable("Path", $NewPath, [EnvironmentVariableTarget]::User)
     }
 
@@ -35,8 +37,8 @@ if ($null -ne $CurrentHome) {
     }
     
     # 4. (可选) 同步清理当前会话 de $env:Path，避免残留
-    $env:Path = ($env:Path -split ";" | Where-Object { 
-        $_ -ne $CurrentHome -and $_ -ne (Join-Path $CurrentHome "scripts")
+    $env:Path = @($env:Path -split ";" | Where-Object { 
+        $_ -ne $CurrentHome
     }) -join ";"
 
     Log-Message "Successfully removed '$EnvVarName' and cleaned up PATH." -Level Success
@@ -50,25 +52,25 @@ else {
 
     # 2. 更新注册表中的 Path
     $Path = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User)
-    Log-Message "Old User PATH (Registry): $Path" -Level Info
     
     $PathEntries = $Path -split ";"
     $HomeEntry = "%$EnvVarName%"
-    $ScriptsEntry = "%$EnvVarName%\scripts"
 
     $NewEntries = @()
     if ($PathEntries -notcontains $HomeEntry) { $NewEntries += $HomeEntry }
-    if ($PathEntries -notcontains $ScriptsEntry) { $NewEntries += $ScriptsEntry }
 
     if ($NewEntries.Count -gt 0) {
-        $NewPath = (($PathEntries | Where-Object { $_ -ne "" }) + $NewEntries) -join ";"
-        Log-Message "Updating User PATH (Registry) to: $NewPath" -Level Info
+        $NewPath = (@($PathEntries | Where-Object { $_ -ne "" }) + $NewEntries) -join ";"
+        Log-Message "Registry PATH Update: Backing up old path to pw2401_old_path" -Level Info
+        Log-Message "Old PATH: $Path" -Level Info
+        Log-Message "New PATH: $NewPath" -Level Success
+        [Environment]::SetEnvironmentVariable("pw2401_old_path", $Path, [EnvironmentVariableTarget]::User)
         [Environment]::SetEnvironmentVariable("Path", $NewPath, [EnvironmentVariableTarget]::User)
     }
 
     # 3. 同步到当前会话
     $env:pw2401_home = $TargetHome
-    $env:Path = "$TargetHome;$(Join-Path $TargetHome 'scripts');$env:Path"
+    $env:Path = "$TargetHome;$env:Path"
 
     Log-Message "Installation complete. Registry updated." -Level Success
 }
