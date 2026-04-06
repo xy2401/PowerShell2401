@@ -77,6 +77,7 @@ foreach ($dir in $targetDirs) {
         }
     }
 
+    Write-Host ""
     Log-Message "`n--- Analyzing: $displayPath ---" -Level Info 
     Write-Host ("{0,-15} : {1}" -f "Directory Name", $dir.Name) -ForegroundColor Cyan
     Write-Host ("{0,-15} : {1}" -f "Relative Depth", $currentDepth) -ForegroundColor Cyan
