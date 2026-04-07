@@ -31,7 +31,7 @@ if ($args.Count -gt 1) {
 $ProjectFunctions = Join-Path $PSScriptRoot "functions"
 
  
-Get-ChildItem "$PSScriptRoot\lib\*.psm1" | ForEach-Object { Import-Module $_.FullName -Force }
+    Get-ChildItem -LiteralPath "$PSScriptRoot\lib" -Filter "*.psm1" | ForEach-Object { Import-Module $_.FullName -Force }
 
  
 # 全局变量
@@ -51,7 +51,7 @@ if ([string]::IsNullOrWhiteSpace($Action)) {
     Log-Message "未提供动作参数，默认执行 help"
     $Action = "help" 
 }
-elseif (-not (Test-Path (Join-Path $ProjectFunctions "$Action.ps1"))) {
+elseif (-not (Test-Path -LiteralPath (Join-Path $ProjectFunctions "$Action.ps1"))) {
     # 情况 B: 提供了动作但文件不存在，记录警告并重定向到 help
     Log-Message "未识别的命令: $Action" -Level Warning
     $Action = "help" 

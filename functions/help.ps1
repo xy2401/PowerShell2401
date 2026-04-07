@@ -29,8 +29,8 @@ Write-Host "`n================ Powershell2401 工具箱帮助中心 ============
 Write-Host "用法: Powershell2401 <命令名> [参数]`n" -ForegroundColor Gray
 
 Write-Host "[ 系统命令 (functions 目录) ]" -ForegroundColor Yellow
-if (Test-Path $FunctionFolder) {
-    Get-ChildItem -Path $FunctionFolder -Filter *.ps1 | ForEach-Object { Format-HelpItem $_ "Cyan" }
+if (Test-Path -LiteralPath $FunctionFolder) {
+    Get-ChildItem -LiteralPath $FunctionFolder -Filter *.ps1 | ForEach-Object { Format-HelpItem $_ "Cyan" }
 }
 
 Write-Host "======================================================`n"

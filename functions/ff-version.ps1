@@ -55,7 +55,7 @@ try {
     }
 
     # 清理 NV 临时文件
-    if (Test-Path $nvOutput) { Remove-Item $nvOutput -Force }
+    if (Test-Path -LiteralPath $nvOutput) { Remove-Item -LiteralPath $nvOutput -Force }
 
     # 如果开启了 Debug，记录完整输出
     if ($dirArgs.debug) {
@@ -68,5 +68,5 @@ catch {
 }
 finally {
     # 清理临时文件
-    if (Test-Path $tempOutput) { Remove-Item $tempOutput -Force }
+    if (Test-Path -LiteralPath $tempOutput) { Remove-Item -LiteralPath $tempOutput -Force }
 }

@@ -6,7 +6,7 @@
 
 function Update-MediaTypes {
     $mediaTypesDir = Join-Path $PSScriptRoot "..\tests\media-types"
-    if (-not (Test-Path $mediaTypesDir)) {
+    if (-not (Test-Path -LiteralPath $mediaTypesDir)) {
         New-Item -ItemType Directory -Path $mediaTypesDir -Force | Out-Null
     }
 
@@ -44,8 +44,8 @@ function Update-MediaTypes {
         Write-Warning "Failed to download db.json: $($_.Exception.Message)"
     }
 
-    if (Test-Path $mimeDbPath) {
-        $mimeDb = Get-Content $mimeDbPath -Raw | ConvertFrom-Json
+    if (Test-Path -LiteralPath $mimeDbPath) {
+        $mimeDb = Get-Content -LiteralPath $mimeDbPath -Raw | ConvertFrom-Json
         
         # 定义需要提取的类别及其 MIME 匹配模式
         $categoryMap = @(
@@ -57,8 +57,8 @@ function Update-MediaTypes {
         )
 
         $configPath = Join-Path $PSScriptRoot "..\config.json"
-        if (Test-Path $configPath) {
-            $configContent = Get-Content $configPath -Raw
+        if (Test-Path -LiteralPath $configPath) {
+            $configContent = Get-Content -LiteralPath $configPath -Raw
             try {
                 $config = $configContent | ConvertFrom-Json
             } catch {
@@ -100,7 +100,7 @@ function Update-MediaTypes {
 
             # 保存更新后的 config.json
             $configJson = $config | ConvertTo-Json -Depth 10
-            Set-Content -Path $configPath -Value $configJson
+            Set-Content -LiteralPath $configPath -Value $configJson
             Write-Host "`nSuccessfully updated config.json with new media extensions." -ForegroundColor Green
         } else {
             Write-Error "config.json not found at $configPath"

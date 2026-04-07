@@ -12,8 +12,8 @@ function Get-GlobalConfig {
 
     # 1. 读取配置文件
     $configPath = Join-Path $ProjectRoot "config.json"
-    if (Test-Path $configPath) {
-        $config = Get-Content -Path $configPath -Raw | ConvertFrom-Json
+    if (Test-Path -LiteralPath $configPath) {
+        $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
     }
     else {
         Log-Message "config.json not found ! " -Level Warning
