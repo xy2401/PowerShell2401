@@ -9,11 +9,11 @@
     它是从 scripts/ff_masonry.ps1 迁移而来的，并复用了项目中的模块。
 
 .PARAMETER Sort
-    文件名排序方式。'Smart'（数字顺序，默认）、'Name'（字母顺序）或 'Size'（面积大小降序）。
-    [高级玩法] 关于 -Sort Size：
-    选择按分辨率 `Size` 排序（面积降序），将自动应用经典的贪心装箱堆叠算法（Bin Packing Heuristics - FFD / 最小化加工时间 LPT）。
-    让面积大的长图优先寻找最短列占坑，用小尺寸碎图拖到最后去当“填缝剂”。配合设置一定的 Tolerance 容差，
-    可以在不破坏局部横向阅读体验的情况下，极大地吸收生成图底部的“犬牙交错”缝隙差值。
+    文件名排序方式。'Smart'（数字顺序，默认）、'Name'（字母顺序）或 'VerticalRatio'（按缩放后的高度比例降序）。
+    [高级玩法] 关于 -Sort VerticalRatio：
+    选择按纵向比例 `VerticalRatio` 排序（通过高宽比算出最终实际占用高度并降序排列），将自动应用经典的贪心装箱堆叠算法（Bin Packing Heuristics - FFD / 最小加工时间 LPT）。
+    让特别长的竖图优先寻找最短列占坑，用小又扁的横图留到最后去当“填缝剂”。配合设置一定的 Tolerance 容差，
+    可以在不破坏局部横向阅读体验的情况下，极大地吸收生成图底部的“犬牙交错”高度差值。
 
 .EXAMPLE
     pw2401 ff-masonry
@@ -32,8 +32,11 @@ param (
     [Parameter(HelpMessage = "瀑布流的列数。默认 5。")]
     [int]$ColumnCount = 5,
 
+    [Parameter(HelpMessage = "是否在每列内上下倒序。搭配 -Sort VerticalRatio 时，能让本在底缝的小矮图跑到顶部先声夺人，巨幅长图镇场在底部。")]
+    [switch]$ReverseColumn,
+
     [Parameter(HelpMessage = "排序容差系数。设置为极小值(如 0.5)可以兼顾排序和底部对齐，默认 0.5。")]
-    [double]$Tolerance = 1.5,
+    [double]$Tolerance = 0.5,
 
     [Parameter(HelpMessage = "图片之间的间隙大小（像素）。默认 0。")]
     [int]$Gap = 0,
@@ -47,8 +50,8 @@ param (
     [Parameter(HelpMessage = "显示文件名时的字体大小。默认 20。")]
     [int]$FontSize = 20,
 
-    [Parameter(HelpMessage = "文件名排序方式。'Smart'（数字顺序，默认）、'Name'（字母顺序）或 'Size'（按分辨率大小降序，能把最空闲的填在最后）。")]
-    [ValidateSet("Smart", "Name", "Size")]
+    [Parameter(HelpMessage = "文件名排序方式。'Smart'（数字顺序，默认）、'Name'（字母顺序）或 'VerticalRatio'（按最终占据高度的比例降序，让扁平的横图作为填缝剂填在最后）。")]
+    [ValidateSet("Smart", "Name", "VerticalRatio")]
     [string]$Sort = "Smart",
 
     [Parameter(HelpMessage = "处理路径的深度。默认 0 即仅当前目录，1 表示包含所有一级子目录，以此类推。")]
@@ -118,12 +121,17 @@ function Get-MasonryLayout {
     $ColWidth = [int]($Config.CanvasWidth / $Config.ColumnCount)
     $ColHeights = New-Object int[] $Config.ColumnCount
     $ColFileCounts = New-Object int[] $Config.ColumnCount
+    
+    # 追踪每列包含的图片，以便后续可能进行列内倒序排布
+    $ColImages = New-Object System.Collections.ArrayList[] $Config.ColumnCount
     $ColFileLists = [System.Collections.ArrayList[]]::new($Config.ColumnCount)
-    for ($j = 0; $j -lt $Config.ColumnCount; $j++) { $ColFileLists[$j] = [System.Collections.ArrayList]::new() }
+    for ($j = 0; $j -lt $Config.ColumnCount; $j++) { 
+        $ColFileLists[$j] = [System.Collections.ArrayList]::new() 
+        $ColImages[$j] = [System.Collections.ArrayList]::new()
+    }
 
     $FfmpegInputArgs = @()
     $Filters = @()
-    $Layouts = @()
     $CurrentCol = 0
 
     for ($i = 0; $i -lt $ValidFiles.Count; $i++) {
@@ -150,11 +158,10 @@ function Get-MasonryLayout {
 
         $TargetCol = if (($ColHeights[$CurrentCol] - $MinH) -gt ($ScaledH * $Config.Tolerance)) { $ShortestIdx } else { $CurrentCol }
         $PosX = $TargetCol * ($ColWidth + $Config.Gap)
-        $PosY = $ColHeights[$TargetCol]
-
         $OldH = $ColHeights[$TargetCol]
         $NewH = $OldH + $ScaledH + $Config.Gap
-        Log-Message "[Layout] [$i] $($File.Name) | Origin: ${W}x${H} | ScaledH: $ScaledH | Col: $TargetCol | PosY (OldH): $OldH | NewH: $NewH" -Level Info
+
+        Log-Message "[Layout] [$i] $($File.Name) | Origin: ${W}x${H} | ScaledH: $ScaledH | Col: $TargetCol | MathOldH: $OldH | MathNewH: $NewH" -Level Info
 
         if ($Config.ShowFileName) {
             $EscapedName = $File.Name.Replace(":", "\\:").Replace("'", "").Replace("[", "\[").Replace("]", "\]")
@@ -163,17 +170,38 @@ function Get-MasonryLayout {
 
         $FfmpegInputArgs += "-i", $File.FullName
         $Filters += "[${i}:v]${ImageFilter}[v$i]"
-        $Layouts += "${PosX}_${PosY}"
         
-        $ColHeights[$TargetCol] += ($ScaledH + $Config.Gap)
+        # 存下分配信息，用来二次构建实际坐标
+        [void]$ColImages[$TargetCol].Add([PSCustomObject]@{ Index = $i; ScaledH = $ScaledH; PosX = $PosX })
+        
+        $ColHeights[$TargetCol] = $NewH
         $ColFileCounts[$TargetCol]++
         [void]$ColFileLists[$TargetCol].Add($File.Name)
         $CurrentCol = ($TargetCol + 1) % $Config.ColumnCount
     }
 
+    # --------- 二次生成真实 Y 坐标 (处理逆序需求) ---------
+    $LayoutsArray = New-Object string[] $ValidFiles.Count
+    for ($c = 0; $c -lt $Config.ColumnCount; $c++) {
+        $ColList = $ColImages[$c]
+        
+        if ($Config.ReverseColumn) {
+            $ColList.Reverse()
+            # 同步翻转统计名单以匹配最终视觉
+            $ColFileLists[$c].Reverse()
+        }
+
+        $CurrentY = 0
+        foreach ($ImgData in $ColList) {
+            $Idx = $ImgData.Index
+            $LayoutsArray[$Idx] = "$($ImgData.PosX)_${CurrentY}"
+            $CurrentY += $ImgData.ScaledH + $Config.Gap
+        }
+    }
+
     $Config | Add-Member -NotePropertyName 'FfmpegInputArgs' -NotePropertyValue $FfmpegInputArgs -Force
     $Config | Add-Member -NotePropertyName 'Filters' -NotePropertyValue $Filters -Force
-    $Config | Add-Member -NotePropertyName 'Layouts' -NotePropertyValue $Layouts -Force
+    $Config | Add-Member -NotePropertyName 'Layouts' -NotePropertyValue $LayoutsArray -Force
     $Config | Add-Member -NotePropertyName 'ColHeights' -NotePropertyValue $ColHeights -Force
     $Config | Add-Member -NotePropertyName 'ColFileCounts' -NotePropertyValue $ColFileCounts -Force
     $Config | Add-Member -NotePropertyName 'ColFileLists' -NotePropertyValue $ColFileLists -Force
@@ -277,10 +305,10 @@ foreach ($TargetFolderItem in $TargetFolders) {
         continue 
     }
 
-    # 按尺寸大小重新排序（基于面积 Width * Height 降序）
-    if ($Sort -eq "Size") {
-        $ValidFiles = @($ValidFiles | Sort-Object -Property @{ Expression = { $_.Width * $_.Height }; Descending = $true })
-        Log-Message "已按照图片分辨率尺寸 (面积) 降序重排。" -Level Info
+    # 按相对高度比例排序（等宽缩放后的实际高度降序）
+    if ($Sort -eq "VerticalRatio") {
+        $ValidFiles = @($ValidFiles | Sort-Object -Property @{ Expression = { $_.Height / $_.Width }; Descending = $true })
+        Log-Message "已按照图片目标缩放纵向比例 (VerticalRatio) 降序重排。" -Level Info
     }
 
     Log-Message "成功找到 $($ValidFiles.Count) 张图片。" -Level Success
@@ -292,6 +320,7 @@ foreach ($TargetFolderItem in $TargetFolders) {
     $LayoutContext = [PSCustomObject]@{
         CanvasWidth   = $CanvasWidth
         ColumnCount   = $ColumnCount
+        ReverseColumn = $ReverseColumn
         Tolerance     = $Tolerance
         Gap           = $Gap
         ShowFileName  = $ShowFileName
