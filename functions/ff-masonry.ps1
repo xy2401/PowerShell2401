@@ -48,7 +48,10 @@ param (
     [int]$Depth = 0,
 
     [Parameter(HelpMessage = "统一裁剪尺寸格式 '宽x高' (如 '1920x1080')。设置为 'Auto' 时自动计算尺寸众数，不设置或为空则关闭统一裁剪（保留原始比例）。")]
-    [string]$CropSize = ""
+    [string]$CropSize = "",
+
+    [Parameter(HelpMessage = "输出的 JPEG 质量等级 (1-31)。数字越小质量越高、越清晰，同时也越大。默认 2 (高画质)。")]
+    [int]$JpegQuality = 2
 )
 
 # =======================================================
@@ -126,11 +129,11 @@ function Get-MasonryLayout {
 
         if ($Config.IsUniformMode -and $Config.TargetRatioW -gt 0) {
             $ScaledH = [int]($ColWidth * $Config.TargetRatioH / $Config.TargetRatioW)
-            $ImageFilter = "scale=${ColWidth}:${ScaledH}:force_original_aspect_ratio=increase,crop=${ColWidth}:${ScaledH}"
+            $ImageFilter = "scale=${ColWidth}:${ScaledH}:force_original_aspect_ratio=increase:flags=lanczos,crop=${ColWidth}:${ScaledH}"
         }
         else {
             $ScaledH = [int]($ColWidth * $H / $W)
-            $ImageFilter = "scale=${ColWidth}:-1"
+            $ImageFilter = "scale=${ColWidth}:-1:flags=lanczos"
         }
 
         $MinH = $ColHeights[0]; $ShortestIdx = 0
@@ -291,7 +294,7 @@ foreach ($TargetFolderItem in $TargetFolders) {
 
     $FfmpegCommandArgs = @("-hide_banner", "-loglevel", "warning")
     $FfmpegCommandArgs += $LayoutContext.FfmpegInputArgs
-    $FfmpegCommandArgs += "-/filter_complex", $AbsoluteFilterPath, "-y", $AbsoluteOutputFile
+    $FfmpegCommandArgs += "-/filter_complex", $AbsoluteFilterPath, "-q:v", "$JpegQuality", "-y", $AbsoluteOutputFile
 
     Log-Message "即将执行的完整命令: ffmpeg $($FfmpegCommandArgs -join ' ')" -Level Info
     
