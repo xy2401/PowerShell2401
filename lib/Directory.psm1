@@ -27,7 +27,7 @@ function Create-Directories {
     )
 
     # 创建目标目录，如果不存在
-    if (-not (Test-Path -Path $targetDir)) {
+    if (-not (Test-Path -LiteralPath $targetDir)) {
         New-Item -Path $targetDir -ItemType Directory | Out-Null
     }
     # 使用 -LiteralPath 参数以防止通配符解释，遍历所有子目录并创建对应的目标目录
@@ -36,7 +36,7 @@ function Create-Directories {
         $relativePath = $subDir.Substring($sourceDir.Length).TrimStart("\")
         $newTargetDir = Join-Path -Path $targetDir -ChildPath $relativePath
 
-        if (-not (Test-Path -Path $newTargetDir)) {
+        if (-not (Test-Path -LiteralPath $newTargetDir)) {
             New-Item -Path $newTargetDir -ItemType Directory | Out-Null
         }
     }
