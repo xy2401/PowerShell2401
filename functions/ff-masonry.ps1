@@ -249,10 +249,41 @@ foreach ($TargetFolderItem in $TargetFolders) {
         # 使用模块中的 Get-MediaInfo
         $MediaInfo = Get-MediaInfo -Path $File.FullName
         if ($MediaInfo.Type -eq "image" -or ($MediaInfo.Type -eq "video" -and $MediaInfo.Width -gt 0)) {
+            
+            $W = $MediaInfo.Width
+            $H = $MediaInfo.Height
+            $Rot = "Normal"
+
+            if ($MediaInfo.Type -eq "image" -and $File.Extension -match "(?i)\.(jpg|jpeg)$") {
+                try {
+                    Add-Type -AssemblyName System.Drawing
+                    $img = [System.Drawing.Image]::FromFile($File.FullName)
+                    if ($img.PropertyIdList -contains 274) {
+                        $orientation = [BitConverter]::ToInt16($img.GetPropertyItem(274).Value, 0)
+                        if ($orientation -in 5..8) {
+                            $Rot = "Rotated90/270 (EXIF $orientation)"
+                            $W = $MediaInfo.Height
+                            $H = $MediaInfo.Width
+                        } else {
+                            $Rot = "Normal (EXIF $orientation)"
+                        }
+                    } else {
+                        $Rot = "NoEXIF"
+                    }
+                    $img.Dispose()
+                } catch {
+                    $Rot = "Error"
+                }
+            }
+
+            if ($IsDebug) {
+                Log-Message "[EXIF Check] $($File.Name) | Raw: $($MediaInfo.Width)x$($MediaInfo.Height) | EXIF: $Rot | Final: ${W}x${H}" -Level Info
+            }
+
             $ValidFiles += [PSCustomObject]@{
                 File   = $File
-                Width  = $MediaInfo.Width
-                Height = $MediaInfo.Height
+                Width  = $W
+                Height = $H
             }
         }
     }
