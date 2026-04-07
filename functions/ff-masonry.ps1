@@ -25,8 +25,8 @@ param (
     [Parameter(HelpMessage = "瀑布流的列数。默认 5。")]
     [int]$ColumnCount = 5,
 
-    [Parameter(HelpMessage = "容差系数，用于决定把图片放在哪一列。默认 2。")]
-    [double]$Tolerance = 2,
+    [Parameter(HelpMessage = "排序容差系数。设置为极小值(如 0.5)可以兼顾排序和底部对齐，默认 0.5。")]
+    [double]$Tolerance = 0.5,
 
     [Parameter(HelpMessage = "图片之间的间隙大小（像素）。默认 0。")]
     [int]$Gap = 0,
@@ -144,6 +144,10 @@ function Get-MasonryLayout {
         $TargetCol = if (($ColHeights[$CurrentCol] - $MinH) -gt ($ScaledH * $Config.Tolerance)) { $ShortestIdx } else { $CurrentCol }
         $PosX = $TargetCol * ($ColWidth + $Config.Gap)
         $PosY = $ColHeights[$TargetCol]
+
+        $OldH = $ColHeights[$TargetCol]
+        $NewH = $OldH + $ScaledH + $Config.Gap
+        Log-Message "[Layout] [$i] $($File.Name) | Origin: ${W}x${H} | ScaledH: $ScaledH | Col: $TargetCol | PosY (OldH): $OldH | NewH: $NewH" -Level Info
 
         if ($Config.ShowFileName) {
             $EscapedName = $File.Name.Replace(":", "\\:").Replace("'", "").Replace("[", "\[").Replace("]", "\]")
