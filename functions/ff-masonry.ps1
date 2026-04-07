@@ -26,7 +26,7 @@ param (
     [int]$ColumnCount = 5,
 
     [Parameter(HelpMessage = "排序容差系数。设置为极小值(如 0.5)可以兼顾排序和底部对齐，默认 0.5。")]
-    [double]$Tolerance = 0.5,
+    [double]$Tolerance = 1.5,
 
     [Parameter(HelpMessage = "图片之间的间隙大小（像素）。默认 0。")]
     [int]$Gap = 0,
