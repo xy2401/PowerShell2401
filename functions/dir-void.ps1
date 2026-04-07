@@ -9,17 +9,21 @@
        - 删除空文件夹。
        - 将冗余文件夹内的唯一子文件夹上移一层。如果目标位置已存在同名目录，则在新名字后追加 .move。
 
-.PARAMETER Depth
-    处理深度。默认 0 即仅当前目录，1 表示包含所有一级子目录，以此类推。
+.PARAMETER Delete
+    删除检查到的绝对空文件夹。
 
-.PARAMETER Y
-    确认执行开关。如果不加此参数，仅进行扫描和预览。
+.PARAMETER MoveUp
+    将冗余文件夹（仅包含单个子文件夹、无文件）内的子文件夹上移一层，并清理外层空壳。如果目标位置冲突，会加 .move 后缀。
 #>
 
 param(
     [int]$Depth = 0,
-    [switch]$Y
+    [switch]$Delete,
+    [switch]$MoveUp
 )
+
+# 判断是否为纯预览模式（没有提供任何清理动作）
+$isPreview = (-not $Delete -and -not $MoveUp)
 
 $runtime = $global:GlobalConfig.runtime
 $workDir = $runtime.WorkDir
@@ -29,7 +33,9 @@ $logFileName = "dir-void_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
 Init-Log $logFileName
 
 Log-Message "Scanning for 'void' directories (Depth: $Depth)..." -Level Info
-if ($Y) { Log-Message "[Mode] Cleanup enabled (-Y detected)" -Level Warning }
+if ($isPreview) { Log-Message "[Mode] Preview (Check only)" -Level Info }
+if ($Delete) { Log-Message "[Mode] Delete empty directories enabled" -Level Warning }
+if ($MoveUp) { Log-Message "[Mode] Move-Up redundant directories enabled" -Level Warning }
 
 # 使用通用深度寻层逻辑获取目标目录
 $targetDirs = Get-Directory-Depth -Path $workDir -Depth $Depth
@@ -53,7 +59,7 @@ foreach ($dir in $targetDirs) {
     if ($fileCount -eq 0 -and $dirCount -eq 0) {
         $emptyCount++
         Log-Message "[Empty] $dirPath" -Level Warning
-        if ($Y) {
+        if ($Delete) {
             try {
                 Remove-Item -LiteralPath $dirPath -Force -ErrorAction Stop
                 Log-Message "  -> Deleted." -Level Success
@@ -69,7 +75,7 @@ foreach ($dir in $targetDirs) {
         $targetSubDir = $subDirs[0]
         Log-Message "[Redundant] $dirPath (Contains: $($targetSubDir.Name))" -Level Warning
         
-        if ($Y) {
+        if ($MoveUp) {
             $parentDir = $dir.Parent.FullName
             if (-not $parentDir) { 
                 Log-Message "  -> [Skip] Cannot move subfolder of root directory." -Level Warning
@@ -100,6 +106,6 @@ foreach ($dir in $targetDirs) {
 
 Log-Message "`nScan Complete." -Level Info
 Log-Message "Found $emptyCount empty folders and $redundantCount redundant folders." -Level Info
-if (-not $Y -and ($emptyCount + $redundantCount -gt 0)) {
-    Log-Message "Hint: Run with '-Y' to perform cleanup." -Level Info
+if ($isPreview) {
+    Log-Message "Hint: Run with '-Delete' or '-MoveUp' to perform cleanup actions." -Level Info
 }
