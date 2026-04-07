@@ -184,15 +184,21 @@ $TargetFolders = Get-Directory-Depth -Path $InputFolder -Depth $Depth
 
 foreach ($TargetFolderItem in $TargetFolders) {
     $AbsoluteInputPath = $TargetFolderItem.FullName
-    $relativePath = $AbsoluteInputPath.Substring($InputFolder.Length).TrimStart("\")
-    $OutputBaseDir = Join-Path -Path $TargetFolder -ChildPath $relativePath
+    $RelativePath = $AbsoluteInputPath.Substring($InputFolder.Length).TrimStart("\")
     
+    if ([string]::IsNullOrEmpty($RelativePath)) {
+        $OutputBaseDir = $TargetFolder
+        $FolderName = Split-Path -Leaf $AbsoluteInputPath
+        if (-not $FolderName) { $FolderName = "Root" }
+    } else {
+        $RelativeParent = Split-Path -Parent $RelativePath
+        $OutputBaseDir = Join-Path -Path $TargetFolder -ChildPath $RelativeParent
+        $FolderName = Split-Path -Leaf $RelativePath
+    }
+
     if (-not (Test-Path -LiteralPath $OutputBaseDir)) {
         New-Item -Path $OutputBaseDir -ItemType Directory -Force | Out-Null
     }
-
-    $FolderName = Split-Path -Leaf $AbsoluteInputPath
-    if (-not $FolderName) { $FolderName = "Root" }
     
     # --- 动态构建文件名后缀 ---
     $Suffix = "masonry"
