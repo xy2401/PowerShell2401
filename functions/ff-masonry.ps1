@@ -232,7 +232,7 @@ foreach ($TargetFolderItem in $TargetFolders) {
     }
 
     # 1. 智能媒体探测
-    Log-Message "`n--- 2. 正在扫描素材 ---" -Level Info
+    Log-Message "`n--- 2. 扫描素材并计算瀑布流布局 ---" -Level Info
     $ValidFiles = @()
     $AllFiles = Get-ChildItem -LiteralPath $AbsoluteInputPath -File
 
@@ -250,40 +250,17 @@ foreach ($TargetFolderItem in $TargetFolders) {
         $MediaInfo = Get-MediaInfo -Path $File.FullName
         if ($MediaInfo.Type -eq "image" -or ($MediaInfo.Type -eq "video" -and $MediaInfo.Width -gt 0)) {
             
-            $W = $MediaInfo.Width
-            $H = $MediaInfo.Height
-            $Rot = "Normal"
-
-            if ($MediaInfo.Type -eq "image" -and $File.Extension -match "(?i)\.(jpg|jpeg)$") {
-                try {
-                    Add-Type -AssemblyName System.Drawing
-                    $img = [System.Drawing.Image]::FromFile($File.FullName)
-                    if ($img.PropertyIdList -contains 274) {
-                        $orientation = [BitConverter]::ToInt16($img.GetPropertyItem(274).Value, 0)
-                        if ($orientation -in 5..8) {
-                            $Rot = "Rotated90/270 (EXIF $orientation)"
-                            $W = $MediaInfo.Height
-                            $H = $MediaInfo.Width
-                        } else {
-                            $Rot = "Normal (EXIF $orientation)"
-                        }
-                    } else {
-                        $Rot = "NoEXIF"
-                    }
-                    $img.Dispose()
-                } catch {
-                    $Rot = "Error"
-                }
-            }
+            # 使用 File.psm1 模块封装的函数获取真实的 EXIF 宽和高
+            $TrueInfo = Get-ImageTrueDimensions -FilePath $File.FullName -RawWidth $MediaInfo.Width -RawHeight $MediaInfo.Height
 
             if ($IsDebug) {
-                Log-Message "[EXIF Check] $($File.Name) | Raw: $($MediaInfo.Width)x$($MediaInfo.Height) | EXIF: $Rot | Final: ${W}x${H}" -Level Info
+                Log-Message "[EXIF Check] $($File.Name) | Raw: $($MediaInfo.Width)x$($MediaInfo.Height) | EXIF: $($TrueInfo.Exif) | Final: $($TrueInfo.Width)x$($TrueInfo.Height)" -Level Info
             }
 
             $ValidFiles += [PSCustomObject]@{
                 File   = $File
-                Width  = $W
-                Height = $H
+                Width  = $TrueInfo.Width
+                Height = $TrueInfo.Height
             }
         }
     }
@@ -299,8 +276,6 @@ foreach ($TargetFolderItem in $TargetFolders) {
     $CropInfo = Get-CropInfo -ValidFiles $ValidFiles -CropSize $CropSize
 
     # 2. 准备上下文对象并计算布局
-    Log-Message "`n--- 3. 正在计算瀑布流布局 ---" -Level Info
-    
     $LayoutContext = [PSCustomObject]@{
         CanvasWidth   = $CanvasWidth
         ColumnCount   = $ColumnCount
@@ -316,7 +291,7 @@ foreach ($TargetFolderItem in $TargetFolders) {
     Get-MasonryLayout -ValidFiles $ValidFiles -Config $LayoutContext
 
     # 3. 写入 Filter Script
-    Log-Message "`n--- 4. 生成滤镜脚本 ---" -Level Info
+    Log-Message "`n--- 3. 生成滤镜脚本 ---" -Level Info
     $VLabels = ""
     for ($k = 0; $k -lt $ValidFiles.Count; $k++) { $VLabels += "[v$k]" }
     
@@ -324,7 +299,7 @@ foreach ($TargetFolderItem in $TargetFolders) {
     $FinalFilter | Out-File -LiteralPath $AbsoluteFilterPath -Encoding utf8 -Force
 
     # 4. 运行 FFmpeg
-    Log-Message "`n--- 5. 启动渲染 ---" -Level Info
+    Log-Message "`n--- 4. 启动渲染 ---" -Level Info
     Push-Location -LiteralPath $AbsoluteInputPath
 
     $FfmpegCommandArgs = @("-hide_banner", "-loglevel", "warning")
