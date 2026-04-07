@@ -170,7 +170,9 @@ function Get-MasonryLayout {
 # =======================================================
 
 $runtime = $global:GlobalConfig.runtime
+Update-Target -suffix ".masonry"
 $InputFolder = $runtime.WorkDir
+$TargetFolder = $runtime.TargetDir
 $IsDebug = $runtime.IsDebug
 
 if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue) -or -not (Get-Command ffprobe -ErrorAction SilentlyContinue)) {
@@ -182,9 +184,13 @@ $TargetFolders = Get-Directory-Depth -Path $InputFolder -Depth $Depth
 
 foreach ($TargetFolderItem in $TargetFolders) {
     $AbsoluteInputPath = $TargetFolderItem.FullName
-    $ParentPath = Split-Path -Parent $AbsoluteInputPath
-    if (-not $ParentPath) { $ParentPath = $AbsoluteInputPath }
+    $relativePath = $AbsoluteInputPath.Substring($InputFolder.Length).TrimStart("\")
+    $OutputBaseDir = Join-Path -Path $TargetFolder -ChildPath $relativePath
     
+    if (-not (Test-Path -LiteralPath $OutputBaseDir)) {
+        New-Item -Path $OutputBaseDir -ItemType Directory -Force | Out-Null
+    }
+
     $FolderName = Split-Path -Leaf $AbsoluteInputPath
     if (-not $FolderName) { $FolderName = "Root" }
     
@@ -194,9 +200,9 @@ foreach ($TargetFolderItem in $TargetFolders) {
         $Suffix += "." + $CropSize.ToLower()
     }
 
-    $AbsoluteOutputFile = [System.IO.Path]::GetFullPath((Join-Path $ParentPath "$FolderName.$Suffix.jpg"))
-    $AbsoluteFilterPath = [System.IO.Path]::GetFullPath((Join-Path $ParentPath "$FolderName.$Suffix.filter.txt"))
-    $AbsoluteCsvPath = [System.IO.Path]::GetFullPath((Join-Path $ParentPath "$FolderName.$Suffix.layout.csv"))
+    $AbsoluteOutputFile = [System.IO.Path]::GetFullPath((Join-Path $OutputBaseDir "$FolderName.$Suffix.jpg"))
+    $AbsoluteFilterPath = [System.IO.Path]::GetFullPath((Join-Path $OutputBaseDir "$FolderName.$Suffix.filter.txt"))
+    $AbsoluteCsvPath = [System.IO.Path]::GetFullPath((Join-Path $OutputBaseDir "$FolderName.$Suffix.layout.csv"))
     # --------------------------
 
     Log-Message "`n=======================================================" -Level Info
@@ -205,7 +211,7 @@ foreach ($TargetFolderItem in $TargetFolders) {
 
     Log-Message "--- 1. 路径配置确认 ---" -Level Info
     Log-Message "执行目录 (素材): $AbsoluteInputPath"
-    Log-Message "目标父目录: $ParentPath"
+    Log-Message "目标输出目录: $OutputBaseDir"
     Log-Message "输出文件: $AbsoluteOutputFile"
     if ($IsDebug) { 
         Log-Message "滤镜脚本: $AbsoluteFilterPath"
@@ -329,4 +335,9 @@ foreach ($TargetFolderItem in $TargetFolders) {
     }
 }
 
-Log-Message "`n全部处理完成！" -Level Success
+Log-Message "`n正在清理目标目录中的空文件夹..." -Level Info
+if (Test-Path -LiteralPath $TargetFolder) {
+    Remove-EmptyDirectories -Path $TargetFolder
+}
+
+Log-Message "全部处理完成！" -Level Success
