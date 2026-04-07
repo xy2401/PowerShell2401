@@ -8,6 +8,13 @@
     并动态生成瀑布流布局。可以通过命令行参数自定义输出的列数、画布宽度、间隙大小、背景颜色等。
     它是从 scripts/ff_masonry.ps1 迁移而来的，并复用了项目中的模块。
 
+.PARAMETER Sort
+    文件名排序方式。'Smart'（数字顺序，默认）、'Name'（字母顺序）或 'Size'（面积大小降序）。
+    [高级玩法] 关于 -Sort Size：
+    选择按分辨率 `Size` 排序（面积降序），将自动应用经典的贪心装箱堆叠算法（Bin Packing Heuristics - FFD / 最小化加工时间 LPT）。
+    让面积大的长图优先寻找最短列占坑，用小尺寸碎图拖到最后去当“填缝剂”。配合设置一定的 Tolerance 容差，
+    可以在不破坏局部横向阅读体验的情况下，极大地吸收生成图底部的“犬牙交错”缝隙差值。
+
 .EXAMPLE
     pw2401 ff-masonry
     使用默认参数运行，将会把当前目录下的图片拼成列数为 5、宽度 3000、白色背景的瀑布流。
@@ -40,8 +47,8 @@ param (
     [Parameter(HelpMessage = "显示文件名时的字体大小。默认 20。")]
     [int]$FontSize = 20,
 
-    [Parameter(HelpMessage = "文件名排序方式。'Smart'（智能自然数字排序，默认）或 'Name'（普通按字母顺序）。")]
-    [ValidateSet("Smart", "Name")]
+    [Parameter(HelpMessage = "文件名排序方式。'Smart'（数字顺序，默认）、'Name'（字母顺序）或 'Size'（按分辨率大小降序，能把最空闲的填在最后）。")]
+    [ValidateSet("Smart", "Name", "Size")]
     [string]$Sort = "Smart",
 
     [Parameter(HelpMessage = "处理路径的深度。默认 0 即仅当前目录，1 表示包含所有一级子目录，以此类推。")]
@@ -239,7 +246,7 @@ foreach ($TargetFolderItem in $TargetFolders) {
     if ($Sort -eq "Smart") {
         $AllFiles = $AllFiles | Sort-Object { [regex]::Replace($_.Name, '\d+', { $args[0].Value.PadLeft(20, '0') }) }
     }
-    else {
+    elseif ($Sort -eq "Name") {
         $AllFiles = $AllFiles | Sort-Object Name
     }
 
@@ -268,6 +275,12 @@ foreach ($TargetFolderItem in $TargetFolders) {
     if ($ValidFiles.Count -eq 0) { 
         Log-Message "目录 [$AbsoluteInputPath] 中没有可处理的图片，跳过。" -Level Warning
         continue 
+    }
+
+    # 按尺寸大小重新排序（基于面积 Width * Height 降序）
+    if ($Sort -eq "Size") {
+        $ValidFiles = @($ValidFiles | Sort-Object -Property @{ Expression = { $_.Width * $_.Height }; Descending = $true })
+        Log-Message "已按照图片分辨率尺寸 (面积) 降序重排。" -Level Info
     }
 
     Log-Message "成功找到 $($ValidFiles.Count) 张图片。" -Level Success
