@@ -19,18 +19,18 @@ function Format-HelpItem {
     $sysParams = $allParams | Where-Object { $script:CommonParams -contains $_.Name } | ForEach-Object { "-$($_.Name)" }
     $customParams = $allParams | Where-Object { $script:CommonParams -notcontains $_.Name } | ForEach-Object { "-$($_.Name)" }
 
-    Write-Host " - $($File.BaseName)" -ForegroundColor $Color
-    Write-Host "   [CmdletBinding()] $($sysParams -join ' ')" -ForegroundColor Gray
-    Write-Host "   [参数] $($customParams -join ' ')" -ForegroundColor Gray
-    if ($help.Synopsis) { Write-Host "   说明: $($help.Synopsis -replace '`r|`n', ' ')" }
+    Write-LogMessage -NoPrefix " - $($File.BaseName)" -ForegroundColor $Color
+    Write-LogMessage -NoPrefix "   [CmdletBinding()] $($sysParams -join ' ')" -ForegroundColor Gray
+    Write-LogMessage -NoPrefix "   [参数] $($customParams -join ' ')" -ForegroundColor Gray
+    if ($help.Synopsis) { Write-LogMessage -NoPrefix "   说明: $($help.Synopsis -replace '`r|`n', ' ')" }
 }
 
-Write-Host "`n================ Powershell2401 工具箱帮助中心 ================" -ForegroundColor Cyan
-Write-Host "用法: Powershell2401 <命令名> [参数]`n" -ForegroundColor Gray
+Write-LogMessage -NoPrefix "`n================ Powershell2401 工具箱帮助中心 ================" -ForegroundColor Cyan
+Write-LogMessage -NoPrefix "用法: Powershell2401 <命令名> [参数]`n" -ForegroundColor Gray
 
-Write-Host "[ 系统命令 (functions 目录) ]" -ForegroundColor Yellow
+Write-LogMessage -NoPrefix "[ 系统命令 (functions 目录) ]" -ForegroundColor Yellow
 if (Test-Path -LiteralPath $FunctionFolder) {
     Get-ChildItem -LiteralPath $FunctionFolder -Filter *.ps1 | ForEach-Object { Format-HelpItem $_ "Cyan" }
 }
 
-Write-Host "======================================================`n"
+Write-LogMessage -NoPrefix "======================================================`n"

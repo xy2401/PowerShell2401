@@ -26,7 +26,7 @@ function Update-MediaTypes {
 
     foreach ($entry in $ianaFiles.GetEnumerator()) {
         $dest = Join-Path $mediaTypesDir "$($entry.Key).csv"
-        Write-Host "Downloading $($entry.Value) to $dest..."
+        Write-LogMessage -NoPrefix "Downloading $($entry.Value) to $dest..."
         try {
             Invoke-WebRequest -Uri $entry.Value -OutFile $dest -ErrorAction Stop
         } catch {
@@ -37,7 +37,7 @@ function Update-MediaTypes {
     # 修正后的 mime-db URL
     $mimeDbUrl = "https://raw.githubusercontent.com/jshttp/mime-db/master/db.json"
     $mimeDbPath = Join-Path $mediaTypesDir "db.json"
-    Write-Host "Downloading $mimeDbUrl to $mimeDbPath..."
+    Write-LogMessage -NoPrefix "Downloading $mimeDbUrl to $mimeDbPath..."
     try {
         Invoke-WebRequest -Uri $mimeDbUrl -OutFile $mimeDbPath -ErrorAction Stop
     } catch {
@@ -95,13 +95,13 @@ function Update-MediaTypes {
                     $config.extensions.$categoryName = $extensions
                 }
 
-                Write-Host "Found $($extensions.Count) extensions for category: $categoryName"
+                Write-LogMessage -NoPrefix "Found $($extensions.Count) extensions for category: $categoryName"
             }
 
             # 保存更新后的 config.json
             $configJson = $config | ConvertTo-Json -Depth 10
             Set-Content -LiteralPath $configPath -Value $configJson
-            Write-Host "`nSuccessfully updated config.json with new media extensions." -ForegroundColor Green
+            Write-LogMessage -NoPrefix "`nSuccessfully updated config.json with new media extensions." -ForegroundColor Green
         } else {
             Write-Error "config.json not found at $configPath"
         }

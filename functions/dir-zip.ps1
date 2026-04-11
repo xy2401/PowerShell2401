@@ -19,7 +19,7 @@ if (-not $Extension.StartsWith('.')) {
 }
 
 if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
-    Write-Host "[Error] 找不到目标目录: $Path" -ForegroundColor Red
+    Write-LogMessage -NoPrefix "[Error] 找不到目标目录: $Path" -ForegroundColor Red
     return
 }
 
@@ -36,7 +36,7 @@ $sourceDir = (Get-Item -LiteralPath $Path).FullName
 # 严格锁定处理只在指定的精确深度级产生 (杜绝交叉返回父子包含路径)
 $targetDirs = Get-DirectoryDepth -Path $Path -Depth $Depth
 
-Write-Host "=> [Dir-Zip] 开始处理压缩任务，共选中 $($targetDirs.Count) 个目录" -ForegroundColor Cyan
+Write-LogMessage -NoPrefix "=> [Dir-Zip] 开始处理压缩任务，共选中 $($targetDirs.Count) 个目录" -ForegroundColor Cyan
 
 foreach ($dir in $targetDirs) {
     $dirFullName = $dir.FullName
@@ -57,11 +57,11 @@ foreach ($dir in $targetDirs) {
 
     $zipFilePath = Join-Path -Path $targetParentDir -ChildPath $zipFileName
 
-    Write-Host "-----------------------------------------------"
-    Write-Host "正在归档: $dirFullName"
+    Write-LogMessage -NoPrefix "-----------------------------------------------"
+    Write-LogMessage -NoPrefix "正在归档: $dirFullName"
 
     if (Test-Path -LiteralPath $zipFilePath) {
-        Write-Host " [Warn] 目标压缩包已存在，跳过: $zipFileName" -ForegroundColor Yellow
+        Write-LogMessage -NoPrefix " [Warn] 目标压缩包已存在，跳过: $zipFileName" -ForegroundColor Yellow
         continue
     }
 
@@ -73,11 +73,11 @@ foreach ($dir in $targetDirs) {
             [System.IO.Compression.CompressionLevel]::Optimal, 
             $IncludeBaseFolder.IsPresent
         )
-        Write-Host " 状态: 成功压缩 => $zipFileName" -ForegroundColor Green
+        Write-LogMessage -NoPrefix " 状态: 成功压缩 => $zipFileName" -ForegroundColor Green
     }
     catch {
-        Write-Host " [Error] 压缩期间发生错误: $_" -ForegroundColor Red
+        Write-LogMessage -NoPrefix " [Error] 压缩期间发生错误: $_" -ForegroundColor Red
     }
 }
 
-Write-Host "=> [Dir-Zip] 处理完成！" -ForegroundColor Cyan
+Write-LogMessage -NoPrefix "=> [Dir-Zip] 处理完成！" -ForegroundColor Cyan

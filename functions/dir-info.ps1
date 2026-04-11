@@ -77,10 +77,10 @@ foreach ($dir in $targetDirs) {
         }
     }
 
-    Write-Host ""
+    Write-LogMessage -NoPrefix ""
     Write-LogMessage "`n--- Analyzing: $displayPath ---" -Level Info 
-    Write-Host ("{0,-15} : {1}" -f "Directory Name", $dir.Name) -ForegroundColor Cyan
-    Write-Host ("{0,-15} : {1}" -f "Relative Depth", $currentDepth) -ForegroundColor Cyan
+    Write-LogMessage -NoPrefix ("{0,-15} : {1}" -f "Directory Name", $dir.Name) -ForegroundColor Cyan
+    Write-LogMessage -NoPrefix ("{0,-15} : {1}" -f "Relative Depth", $currentDepth) -ForegroundColor Cyan
     
     # 获取目录下所有非隐藏文件夹数量
     $allDirs = Get-ChildItem -LiteralPath $dirPath -Directory -Recurse | 
@@ -165,26 +165,26 @@ foreach ($dir in $targetDirs) {
     }
 
     # 4. 输出统计结果
-    Write-Host ("{0,-15} | {1,-10} | {2,-15}" -f "Category", "Count", "Size") -ForegroundColor Gray
-    Write-Host ("-" * 45) -ForegroundColor Gray
+    Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f "Category", "Count", "Size") -ForegroundColor Gray
+    Write-LogMessage -NoPrefix ("-" * 45) -ForegroundColor Gray
 
     # 打印总计
-    Write-Host ("{0,-15} | {1,-10} | {2,-15}" -f "Folders", $folderCount, "-") -ForegroundColor White
-    Write-Host ("{0,-15} | {1,-10} | {2,-15}" -f "Direct Files", $subFilesTotal, "-") -ForegroundColor White
-    Write-Host ("{0,-15} | {1,-10} | {2,-15}" -f "Files TOTAL", $stats.TotalCount, (Format-SizeText $stats.TotalSize)) -ForegroundColor White
+    Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f "Folders", $folderCount, "-") -ForegroundColor White
+    Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f "Direct Files", $subFilesTotal, "-") -ForegroundColor White
+    Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f "Files TOTAL", $stats.TotalCount, (Format-SizeText $stats.TotalSize)) -ForegroundColor White
 
     # 打印特殊分类
     $specialCats = @("Hidden", "NoExtension", "Unknown")
     foreach ($sc in $specialCats) {
         if ($stats[$sc].Count -gt 0) {
-            Write-Host ("{0,-15} | {1,-10} | {2,-15}" -f $sc, $stats[$sc].Count, (Format-SizeText $stats[$sc].Size))
+            Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f $sc, $stats[$sc].Count, (Format-SizeText $stats[$sc].Size))
         }
     }
 
     # 打印动态类别
     foreach ($cat in $categories) {
         if ($stats[$cat].Count -gt 0) {
-            Write-Host ("{0,-15} | {1,-10} | {2,-15}" -f $cat, $stats[$cat].Count, (Format-SizeText $stats[$cat].Size)) -ForegroundColor Green
+            Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f $cat, $stats[$cat].Count, (Format-SizeText $stats[$cat].Size)) -ForegroundColor Green
         }
     }
 
@@ -306,13 +306,13 @@ if ($ExtSummary -and $globalExtStats.Count -gt 0) {
     # 分类打印输出
     $catOrder = $groupedStats.Keys | Sort-Object
     foreach ($cat in $catOrder) {
-        Write-Host "[$cat]" -ForegroundColor Green
+        Write-LogMessage -NoPrefix "[$cat]" -ForegroundColor Green
         $catExts = $groupedStats[$cat]
         
         # 将该大类下的扩展名按数量降序排列
         $sortedExts = $catExts.GetEnumerator() | Sort-Object Value -Descending
         foreach ($kv in $sortedExts) {
-            Write-Host ("  .{0,-10} : {1}" -f $kv.Key, $kv.Value) -ForegroundColor Cyan
+            Write-LogMessage -NoPrefix ("  .{0,-10} : {1}" -f $kv.Key, $kv.Value) -ForegroundColor Cyan
         }
     }
 }

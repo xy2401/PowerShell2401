@@ -37,9 +37,9 @@ Write-LogMessage '------ [Debug Log] 脚本执行完毕 ------' -Level Success
 
 
 # 在脚本逻辑中
-Write-Host "已绑定的具名参数:"
+Write-LogMessage -NoPrefix "已绑定的具名参数:"
 $PSBoundParameters.GetEnumerator() | ForEach-Object {
-    Write-Host "$($_.Key) = $($_.Value)"
+    Write-LogMessage -NoPrefix "$($_.Key) = $($_.Value)"
 }
 
 
@@ -63,35 +63,35 @@ function Test-InnerFunction {
         [switch]$TestSwitch
     )
 
-    Write-Host "`n[内部函数 Test-InnerFunction] 侦测结果:" -ForegroundColor Cyan
+    Write-LogMessage -NoPrefix "`n[内部函数 Test-InnerFunction] 侦测结果:" -ForegroundColor Cyan
     
     # 查看函数自身的 PSBoundParameters
-    Write-Host "  -> 函数内部自己的 `$PSBoundParameters:" -ForegroundColor Green
+    Write-LogMessage -NoPrefix "  -> 函数内部自己的 `$PSBoundParameters:" -ForegroundColor Green
     if ($PSBoundParameters.Count -gt 0) {
         $PSBoundParameters.GetEnumerator() | ForEach-Object {
-            Write-Host "       $($_.Key) = $($_.Value)"
+            Write-LogMessage -NoPrefix "       $($_.Key) = $($_.Value)"
         }
     }
     else {
-        Write-Host "       (空 - 没有绑定任何参数)" -ForegroundColor DarkGray
+        Write-LogMessage -NoPrefix "       (空 - 没有绑定任何参数)" -ForegroundColor DarkGray
     }
 
     # 查看外部共享的 script:SharedArgs (来自外部父作用域)
-    Write-Host "  -> 从外部读取的 `$script:SharedArgs:" -ForegroundColor Yellow
+    Write-LogMessage -NoPrefix "  -> 从外部读取的 `$script:SharedArgs:" -ForegroundColor Yellow
     if ($script:SharedArgs.Count -gt 0) {
         $script:SharedArgs.GetEnumerator() | ForEach-Object {
-            Write-Host "       $($_.Key) = $($_.Value)"
+            Write-LogMessage -NoPrefix "       $($_.Key) = $($_.Value)"
         }
     }
     else {
-        Write-Host "       (空)" -ForegroundColor DarkGray
+        Write-LogMessage -NoPrefix "       (空)" -ForegroundColor DarkGray
     }
 }
 
-Write-Host "`n>>> 演示 1: 直接调用内部函数 (不额外传递参数) <<<" -ForegroundColor Magenta
+Write-LogMessage -NoPrefix "`n>>> 演示 1: 直接调用内部函数 (不额外传递参数) <<<" -ForegroundColor Magenta
 Test-InnerFunction
 
-Write-Host "`n>>> 演示 2: 使用 @script:SharedArgs 参数转发(Splatting)调用内部函数 <<<" -ForegroundColor Magenta
+Write-LogMessage -NoPrefix "`n>>> 演示 2: 使用 @script:SharedArgs 参数转发(Splatting)调用内部函数 <<<" -ForegroundColor Magenta
 Test-InnerFunction -TestString $TestString
 
 
