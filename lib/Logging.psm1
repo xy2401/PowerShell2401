@@ -34,7 +34,10 @@ function Write-LogMessage {
         [string]$Message,
 
         [ValidateSet('Info', 'Warning', 'Error', 'Success')]
-        [string]$Level = 'Info'
+        [string]$Level = 'Info',
+        
+        # 允许输出纯净日志，不附带前缀的时间戳
+        [switch]$NoTime
     )
 
     $color = switch ($Level) {
@@ -44,8 +47,12 @@ function Write-LogMessage {
         default { 'Cyan' }
     }
 
-    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    $logEntry = "[$timestamp] [$($Level.ToUpper())] $Message"
+    if ($NoTime) {
+        $logEntry = "[$($Level.ToUpper())] $Message"
+    } else {
+        $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+        $logEntry = "[$timestamp] [$($Level.ToUpper())] $Message"
+    }
     
     # 始终输出到控制台
     Write-Host $logEntry -ForegroundColor $color
