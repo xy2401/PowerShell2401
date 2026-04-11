@@ -13,12 +13,12 @@ $suffix = ".hardlink"
 Update-Target -suffix $suffix
 $runtime = $global:GlobalConfig.runtime
 
-Log-Message "开始创建硬链接镜像目录..." -Level Info
-Log-Message "源目录: $($runtime.WorkDir)" -Level Info
-Log-Message "目标目录: $($runtime.TargetDir)" -Level Info
+Write-LogMessage "开始创建硬链接镜像目录..." -Level Info
+Write-LogMessage "源目录: $($runtime.WorkDir)" -Level Info
+Write-LogMessage "目标目录: $($runtime.TargetDir)" -Level Info
 
 # 2. 调用 lib/Directory.psm1 中的函数创建目录层级
-Create-Directories -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
+New-Directories -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
 
 # 3. 遍历文件并创建硬链接
 $sourceDir = $runtime.WorkDir
@@ -40,8 +40,8 @@ Get-ChildItem -LiteralPath $sourceDir -File -Recurse | ForEach-Object {
         New-Item -ItemType HardLink -Path $targetFile -Target $sourceFile | Out-Null
     }
     catch {
-        Log-Message "创建硬链接失败: $relativePath" -Level Error
+        Write-LogMessage "创建硬链接失败: $relativePath" -Level Error
     }
 }
 
-Log-Message "硬链接目录创建完成！" -Level Success
+Write-LogMessage "硬链接目录创建完成！" -Level Success

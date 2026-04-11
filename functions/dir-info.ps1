@@ -48,15 +48,15 @@ $allResults = [System.Collections.Generic.List[PSObject]]::new()
 $globalExtStats = @{}
 
 # 1. 获取目标文件夹列表
-Log-Message "Scanning directories (Depth: $Depth, Exclude Hidden Folders)..." -Level Info
+Write-LogMessage "Scanning directories (Depth: $Depth, Exclude Hidden Folders)..." -Level Info
 
 # 使用通用深度寻层逻辑获取目标目录
-$targetDirs = Get-Directory-Depth -Path $workDir -Depth $Depth | 
+$targetDirs = Get-DirectoryDepth -Path $workDir -Depth $Depth | 
 Where-Object { $_.Name -notlike ".*" -and -not ($_.Attributes -match "Hidden") }
 
 # 2. 从配置中获取动态类别
 $categories = $global:GlobalConfig.extensions.PSObject.Properties.Name
-Log-Message "Registered categories: $($categories -join ', ')" -Level Info
+Write-LogMessage "Registered categories: $($categories -join ', ')" -Level Info
 
 foreach ($dir in $targetDirs) {
     $dirPath = $dir.FullName
@@ -78,7 +78,7 @@ foreach ($dir in $targetDirs) {
     }
 
     Write-Host ""
-    Log-Message "`n--- Analyzing: $displayPath ---" -Level Info 
+    Write-LogMessage "`n--- Analyzing: $displayPath ---" -Level Info 
     Write-Host ("{0,-15} : {1}" -f "Directory Name", $dir.Name) -ForegroundColor Cyan
     Write-Host ("{0,-15} : {1}" -f "Relative Depth", $currentDepth) -ForegroundColor Cyan
     
@@ -103,7 +103,7 @@ foreach ($dir in $targetDirs) {
     }
 
     if ($null -eq $allFiles -and $folderCount -eq 0) {
-        Log-Message "No files or folders found in this directory." -Level Warning
+        Write-LogMessage "No files or folders found in this directory." -Level Warning
         continue
     }
 
@@ -220,7 +220,7 @@ foreach ($dir in $targetDirs) {
 
 # 导出 CSV
 if ($Csv -and $allResults.Count -gt 0) {
-    Log-Message "`nExporting results to: $finalCsvPath" -Level Info
+    Write-LogMessage "`nExporting results to: $finalCsvPath" -Level Info
     
     # --- 动态排序：将全为 0 的列移到最后 ---
     $sample = $allResults[0]
@@ -272,12 +272,12 @@ if ($Csv -and $allResults.Count -gt 0) {
     }
     
     $allResults | Select-Object -Property $finalColOrder | Export-Csv -LiteralPath $finalCsvPath -NoTypeInformation -Encoding utf8BOM
-    Log-Message "Export Successful!" -Level Success
+    Write-LogMessage "Export Successful!" -Level Success
 }
 
 # 输出全局扩展名统计汇总
 if ($ExtSummary -and $globalExtStats.Count -gt 0) {
-    Log-Message "`n--- Global Extension Summary ---" -Level Info
+    Write-LogMessage "`n--- Global Extension Summary ---" -Level Info
     
     # 根据 config.json 构建后缀名到大类的映射表
     $extToCategory = @{}
@@ -317,4 +317,4 @@ if ($ExtSummary -and $globalExtStats.Count -gt 0) {
     }
 }
 
-Log-Message "`nScan Complete." -Level Success
+Write-LogMessage "`nScan Complete." -Level Success

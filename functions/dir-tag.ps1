@@ -18,24 +18,24 @@ $Path = $runtime.WorkDir
 
 # 动态确定一个日志文件名字
 $logFileName = "dir-tag_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
-Init-Log $logFileName
+Initialize-Log $logFileName
 
 if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
-    Log-Message -message "[Error] 找不到目标目录: $Path"
+    Write-LogMessage -message "[Error] 找不到目标目录: $Path"
     return
 }
 
 # 严格锁定处理只在指定的精确深度级产生 (杜绝交叉返回父子包含路径)
-$targetDirs = Get-Directory-Depth -Path $Path -Depth $Depth
+$targetDirs = Get-DirectoryDepth -Path $Path -Depth $Depth
 
-Log-Message -message "=> [Dir-Tag] 开始处理目录标签任务，共选中 $($targetDirs.Count) 个目录"
+Write-LogMessage -message "=> [Dir-Tag] 开始处理目录标签任务，共选中 $($targetDirs.Count) 个目录"
 
 foreach ($dir in $targetDirs) {
     $dirFullName = $dir.FullName
     $dirName = $dir.Name
     
-    Log-Message -message "-----------------------------------------------"
-    Log-Message -message "正在处理: $dirFullName"
+    Write-LogMessage -message "-----------------------------------------------"
+    Write-LogMessage -message "正在处理: $dirFullName"
 
     $imageCount = 0
     $videoCount = 0
@@ -103,18 +103,18 @@ foreach ($dir in $targetDirs) {
     }
 
     if ($dirName -ceq $newName) {
-        Log-Message -message " 状态: 目录无数据变化，无需重命名 => ($newName)"
+        Write-LogMessage -message " 状态: 目录无数据变化，无需重命名 => ($newName)"
     }
     else {
         # 执行重命名操作
         try {
             Rename-Item -LiteralPath $dirFullName -NewName $newName -ErrorAction Stop
-            Log-Message -message " 状态: 成功打上标签 => $newName"
+            Write-LogMessage -message " 状态: 成功打上标签 => $newName"
         }
         catch {
-            Log-Message -message " [Error] 此目录暂被占用或无权限重命名: $_"
+            Write-LogMessage -message " [Error] 此目录暂被占用或无权限重命名: $_"
         }
     }
 }
 
-Log-Message -message "=> [Dir-Tag] 处理完成！"
+Write-LogMessage -message "=> [Dir-Tag] 处理完成！"

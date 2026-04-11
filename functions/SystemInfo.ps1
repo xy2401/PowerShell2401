@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param()
 
-Log-Message "正在获取系统快照..." -Level Info
+Write-LogMessage "正在获取系统快照..." -Level Info
 
 $os = Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version
 $cpu = Get-CimInstance Win32_Processor | Select-Object Name

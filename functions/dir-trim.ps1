@@ -79,7 +79,7 @@ function Invoke-PadZero {
     $files = Get-ChildItem -LiteralPath $DirectoryPath -File | Where-Object { $_.BaseName -match '\d+' }
     if (-not $files) { return }
 
-    Log-Message ">>> 正在补零对齐: $DirectoryPath" -Level Info
+    Write-LogMessage ">>> 正在补零对齐: $DirectoryPath" -Level Info
 
     $maxNumLen = 0
     foreach ($f in $files) {
@@ -98,7 +98,7 @@ function Invoke-PadZero {
         $newName = $newBaseName + $f.Extension
         
         if ($newName -ne $f.Name) {
-            Log-Message "Padding: $($f.Name) -> $newName" -Level Success
+            Write-LogMessage "Padding: $($f.Name) -> $newName" -Level Success
             Rename-Item -LiteralPath $f.FullName -NewName $newName -ErrorAction SilentlyContinue
         }
     }
@@ -108,7 +108,7 @@ function Invoke-SmartTrim {
     param ([string]$DirectoryPath)
     if ([string]::IsNullOrWhiteSpace($DirectoryPath)) { return }
 
-    Log-Message ">>> 正在智能去缀: $DirectoryPath" -Level Info
+    Write-LogMessage ">>> 正在智能去缀: $DirectoryPath" -Level Info
 
     # 1. 先补零
     Invoke-PadZero -DirectoryPath $DirectoryPath
@@ -117,7 +117,7 @@ function Invoke-SmartTrim {
     $files = Get-ChildItem -LiteralPath $DirectoryPath -File
     $baseNames = $files | ForEach-Object { $_.BaseName }
     if ($baseNames.Count -le 1) { 
-        Log-Message "文件数量不足，跳过提取。" -Level Info
+        Write-LogMessage "文件数量不足，跳过提取。" -Level Info
         return 
     }
 
@@ -126,11 +126,11 @@ function Invoke-SmartTrim {
     $suffix = Get-CommonSuffix -Strings $baseNames
 
     if (-not $prefix -and -not $suffix) {
-        Log-Message "未发现公共前缀或后缀。" -Level Info
+        Write-LogMessage "未发现公共前缀或后缀。" -Level Info
         return
     }
 
-    Log-Message "识别到公共前缀: '$prefix', 公共后缀: '$suffix'" -Level Success
+    Write-LogMessage "识别到公共前缀: '$prefix', 公共后缀: '$suffix'" -Level Success
 
     # 4. 执行修剪
     foreach ($f in $files) {
@@ -146,10 +146,10 @@ function Invoke-SmartTrim {
         if ($newName -ne $f.Name) {
             $targetPath = Join-Path $f.DirectoryName $newName
             if (Test-Path -LiteralPath $targetPath) {
-                Log-Message "冲突: $newName 已存在，跳过 $($f.Name)" -Level Warning
+                Write-LogMessage "冲突: $newName 已存在，跳过 $($f.Name)" -Level Warning
             }
             else {
-                Log-Message "Trimming: $($f.Name) -> $newName" -Level Success
+                Write-LogMessage "Trimming: $($f.Name) -> $newName" -Level Success
                 Rename-Item -LiteralPath $f.FullName -NewName $newName -ErrorAction SilentlyContinue
             }
         }
@@ -163,7 +163,7 @@ function Invoke-SequentialRename {
     )
     if ([string]::IsNullOrWhiteSpace($DirectoryPath)) { return }
 
-    Log-Message ">>> 正在按序重命名 (排序: $SortType): $DirectoryPath" -Level Info
+    Write-LogMessage ">>> 正在按序重命名 (排序: $SortType): $DirectoryPath" -Level Info
 
     $files = Get-ChildItem -LiteralPath $DirectoryPath -File
     if (-not $files) { return }
@@ -192,7 +192,7 @@ function Invoke-SequentialRename {
         $ext = [System.IO.Path]::GetExtension($oldPath)
         $newName = "$($i + 1)$ext"
         
-        Log-Message "Renaming [$SortType]: $($sortedFiles[$i].Name) -> $newName" -Level Success
+        Write-LogMessage "Renaming [$SortType]: $($sortedFiles[$i].Name) -> $newName" -Level Success
         Rename-Item -LiteralPath $oldPath -NewName $newName -Force
     }
 }
@@ -202,27 +202,27 @@ function Invoke-SequentialRename {
 # 1. 识别并获取目录列表
 # 检查 $Path 变量。如果用户通过命令行 -Path 传递了值，它在这里就是有效的。
 if (-not (Test-Path -LiteralPath $Path)) {
-    Log-Message "路径不存在: $Path" -Level Error
+    Write-LogMessage "路径不存在: $Path" -Level Error
     return
 }
 
 $baseDir = (Get-Item -LiteralPath $Path).FullName
 
 if ($Recurse) {
-    Log-Message "模式: 递归处理所有子目录" -Level Info
+    Write-LogMessage "模式: 递归处理所有子目录" -Level Info
     $dirList = @($baseDir)
     $dirList += Get-ChildItem -LiteralPath $baseDir -Directory -Recurse | Select-Object -ExpandProperty FullName
 }
 else {
-    Log-Message "模式: 精确保打击深度为 $Depth 的目录" -Level Info
+    Write-LogMessage "模式: 精确保打击深度为 $Depth 的目录" -Level Info
     
     # 严格锁定处理只在指定的精确深度级产生 (复用 dir 核心套件的无交集遍历法)
-    $targetDirs = Get-Directory-Depth -Path $baseDir -Depth $Depth
+    $targetDirs = Get-DirectoryDepth -Path $baseDir -Depth $Depth
     $dirList = $targetDirs | Select-Object -ExpandProperty FullName
 }
 
 $uniqueDirs = $dirList | Select-Object -Unique
-Log-Message "共发现 $($uniqueDirs.Count) 个目录待处理。" -Level Info
+Write-LogMessage "共发现 $($uniqueDirs.Count) 个目录待处理。" -Level Info
 
 # 2. 遍历执行
 foreach ($dir in $uniqueDirs) {
@@ -233,7 +233,7 @@ foreach ($dir in $uniqueDirs) {
         "help" { Get-Help $PSCommandPath; return }
         "h" { Get-Help $PSCommandPath; return }
         default {
-            Log-Message "未识别的动作: $Action。" -Level Warning
+            Write-LogMessage "未识别的动作: $Action。" -Level Warning
             Get-Help $PSCommandPath
             return
         }

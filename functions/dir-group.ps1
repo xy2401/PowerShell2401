@@ -55,22 +55,22 @@ $Path = $runtime.WorkDir
  
 # 动态确定一个日志文件名字
 $logFileName = "dir-group_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
-Init-Log $logFileName
+Initialize-Log $logFileName
 
 if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
-    Log-Message -message "[Error] 找不到目标目录: $Path"
+    Write-LogMessage -message "[Error] 找不到目标目录: $Path"
     return
 }
 
 # 严格锁定处理只在指定的精确深度级产生 (使用通用深度寻层逻辑)
-$targetDirs = Get-Directory-Depth -Path $Path -Depth $Depth
+$targetDirs = Get-DirectoryDepth -Path $Path -Depth $Depth
 
-Log-Message -message "=> [Dir-Group] 开始处理物理目录排版分组，共选中 $($targetDirs.Count) 个目录"
+Write-LogMessage -message "=> [Dir-Group] 开始处理物理目录排版分组，共选中 $($targetDirs.Count) 个目录"
 
 foreach ($dir in $targetDirs) {
     $dirFullName = $dir.FullName
-    Log-Message -message "-----------------------------------------------"
-    Log-Message -message "正在处理: $dirFullName"
+    Write-LogMessage -message "-----------------------------------------------"
+    Write-LogMessage -message "正在处理: $dirFullName"
 
     # 只获取该目录极其第一层的直属文件 (不包含递归里的孙子辈文件)
     $files = Get-ChildItem -LiteralPath $dirFullName -File
@@ -118,20 +118,20 @@ foreach ($dir in $targetDirs) {
             # 懒惰建立对应的归置夹（即只要发生了命中的相关文件，才去建对应的空壳）
             if (-not (Test-Path -LiteralPath $destPath -PathType Container)) {
                 New-Item -Path $destPath -ItemType Directory -Force | Out-Null
-                Log-Message -message " [+] 按需成功建立分组隔离目录: $targetFolderName"
+                Write-LogMessage -message " [+] 按需成功建立分组隔离目录: $targetFolderName"
             }
             
             try {
                 Move-Item -LiteralPath $file.FullName -Destination $destPath -Force -ErrorAction Stop
             }
             catch {
-                Log-Message -message " [Error] 无法将文件移入对应分组区 $($file.Name): $_"
+                Write-LogMessage -message " [Error] 无法将文件移入对应分组区 $($file.Name): $_"
             }
         }
     }
 
     if ($movedP -eq 0 -and $movedV -eq 0 -and $movedD -eq 0 -and $movedS -eq 0) {
-        Log-Message -message " 状态: 该层级没有匹配到游离在外部的所需文件，未发生物理位移"
+        Write-LogMessage -message " 状态: 该层级没有匹配到游离在外部的所需文件，未发生物理位移"
     }
     else {
         $msg = " 状态: 本层归档打包完毕 (整理收纳了: "
@@ -140,8 +140,8 @@ foreach ($dir in $targetDirs) {
         if ($movedD -gt 0) { $msg += "$movedD 部影片(时长分组) " }
         if ($movedS -gt 0) { $msg += "$movedS 个文件(大小分组) " }
         $msg += ")"
-        Log-Message -message $msg
+        Write-LogMessage -message $msg
     }
 }
 
-Log-Message -message "=> [Dir-Group] 处理完成！"
+Write-LogMessage -message "=> [Dir-Group] 处理完成！"

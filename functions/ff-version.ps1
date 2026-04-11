@@ -14,34 +14,34 @@ if ($null -ne $dirConf -and -not [string]::IsNullOrWhiteSpace($dirConf.ffmpegSvt
     $exe = $dirConf.ffmpegSvtExe
 }
 
-Log-Message -Message "正在检测 FFmpeg 及 SVT-AV1 版本信息 (执行程序: $exe)..." -Level Info
+Write-LogMessage -Message "正在检测 FFmpeg 及 SVT-AV1 版本信息 (执行程序: $exe)..." -Level Info
 
 # 2. 获取 FFmpeg 基础版本
 try {
     $versionSummary = & $exe -version | Select-Object -First 1
-    Log-Message -Message "FFmpeg 摘要: $versionSummary" -Level Success
+    Write-LogMessage -Message "FFmpeg 摘要: $versionSummary" -Level Success
 }
 catch {
-    Log-Message -Message "无法执行 $exe，请检查配置。" -Level Error; return
+    Write-LogMessage -Message "无法执行 $exe，请检查配置。" -Level Error; return
 }
 
 # 3. 构造极小任务探测 SVT-AV1 版本
-Log-Message -Message "正在探测 SVT-AV1 编码器内部版本 (模拟编码中)..." -Level Info
+Write-LogMessage -Message "正在探测 SVT-AV1 编码器内部版本 (模拟编码中)..." -Level Info
 
 $tempDir = [System.IO.Path]::GetTempPath()
 $tempFileName = [System.Guid]::NewGuid().ToString() + ".avif"
 $tempOutput = Join-Path $tempDir $tempFileName
 try {
     # --- 探测 SVT-AV1 ---
-    Log-Message -Message "正在探测 SVT-AV1 编码器内部版本 (模拟编码中)..." -Level Info
+    Write-LogMessage -Message "正在探测 SVT-AV1 编码器内部版本 (模拟编码中)..." -Level Info
     $svtProbe = & $exe -hide_banner -f lavfi -i "color=c=black:s=1x1:d=1" -c:v libsvtav1 -preset 10 -frames:v 1 -f avif -y $tempOutput 2>&1
     $svtVersionLine = $svtProbe | Where-Object { $_ -match "SVT-AV1|Encoder Version|SVT" } | ForEach-Object { $_.ToString().Trim() } | Select-Object -Unique | Select-Object -First 2
     if ($svtVersionLine) {
-        foreach ($line in $svtVersionLine) { Log-Message -Message "SVT-AV1: $line" -Level Success }
+        foreach ($line in $svtVersionLine) { Write-LogMessage -Message "SVT-AV1: $line" -Level Success }
     }
 
     # --- 探测 NVENC ---
-    Log-Message -Message "正在探测 NVIDIA NVENC 编码器信息 (模拟编码中)..." -Level Info
+    Write-LogMessage -Message "正在探测 NVIDIA NVENC 编码器信息 (模拟编码中)..." -Level Info
     $nvOutput = Join-Path $tempDir ($tempFileName + ".nv.mp4")
     $nvProbe = & $exe -hide_banner -f lavfi -i "color=c=black:s=1x1:d=1" -c:v av1_nvenc -frames:v 1 -f mp4 -y $nvOutput 2>&1
     
@@ -49,9 +49,9 @@ try {
     $nvInfo = $nvProbe | Where-Object { $_ -match "NVENC|driver|Nvidia" } | ForEach-Object { $_.ToString().Trim() } | Select-Object -Unique | Select-Object -First 3
     
     if ($nvInfo) {
-        foreach ($line in $nvInfo) { Log-Message -Message "NVENC: $line" -Level Success }
+        foreach ($line in $nvInfo) { Write-LogMessage -Message "NVENC: $line" -Level Success }
     } else {
-        Log-Message -Message "未探测到 NVENC 信息，请确保显卡驱动已安装且支持 AV1 编码。" -Level Warning
+        Write-LogMessage -Message "未探测到 NVENC 信息，请确保显卡驱动已安装且支持 AV1 编码。" -Level Warning
     }
 
     # 清理 NV 临时文件
@@ -59,12 +59,12 @@ try {
 
     # 如果开启了 Debug，记录完整输出
     if ($dirArgs.debug) {
-        Log-Message -Message "--- 完整探测日志已记录 ---" -Level Info
-        $svtProbe | ForEach-Object { Log-Message -Message $_.ToString().Trim() -Level Info }
+        Write-LogMessage -Message "--- 完整探测日志已记录 ---" -Level Info
+        $svtProbe | ForEach-Object { Write-LogMessage -Message $_.ToString().Trim() -Level Info }
     }
 }
 catch {
-    Log-Message -Message "SVT-AV1 探测任务执行失败: $($_.Exception.Message)" -Level Error
+    Write-LogMessage -Message "SVT-AV1 探测任务执行失败: $($_.Exception.Message)" -Level Error
 }
 finally {
     # 清理临时文件

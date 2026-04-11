@@ -4,7 +4,7 @@
 .SYNOPSIS
     初始化日志系统，设置日志文件路径。
 #>
-function Init-Log {
+function Initialize-Log {
     param (
         [string]$LogFile
     )
@@ -28,7 +28,7 @@ function Init-Log {
 .SYNOPSIS
     统一的日志记录函数。如果初始化了路径，则写入文件。
 #>
-function Log-Message {
+function Write-LogMessage {
     param (
         [Parameter(Mandatory = $true, Position = 0)]
         [string]$Message,
@@ -60,4 +60,4 @@ function Log-Message {
     }
 }
 
-Export-ModuleMember -Function Log-Message, Init-Log
+Export-ModuleMember -Function Write-LogMessage, Initialize-Log

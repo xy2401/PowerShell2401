@@ -16,7 +16,7 @@ function Get-GlobalConfig {
         $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
     }
     else {
-        Log-Message "config.json not found ! " -Level Warning
+        Write-LogMessage "config.json not found ! " -Level Warning
         $config = [PSCustomObject]@{
             extensions = [PSCustomObject]@{ image = @(); video = @() }
         }
@@ -76,7 +76,7 @@ function Update-Target {
     $runtime.TargetDirName = $targetDirName
     $runtime.TargetDir = $targetDir
 
-    Log-Message "Update-Target: TargetDirName=$targetDirName" -Level Info
+    Write-LogMessage "Update-Target: TargetDirName=$targetDirName" -Level Info
 }
 
 Export-ModuleMember -Function Get-GlobalConfig, Update-Target

@@ -14,13 +14,13 @@
     目标目录的路径，在此目录中创建对应的子目录。
 
 .EXAMPLE
-    Create-Directories -sourceDir "C:\Path\To\Source" -targetDir "C:\Path\To\Target"
+    New-Directories -sourceDir "C:\Path\To\Source" -targetDir "C:\Path\To\Target"
     在目标目录 C:\Path\To\Target 中创建源目录 C:\Path\To\Source 中所有子目录的副本。
 
 .NOTES
     该函数依赖于 PowerShell 的 Get-ChildItem 和 New-Item cmdlet 来遍历目录和创建子目录。
 #>
-function Create-Directories {
+function New-Directories {
     param (
         [string]$sourceDir,
         [string]$targetDir
@@ -52,7 +52,7 @@ function Create-Directories {
     Depth 为 n 时递归到第 n 层。
     Depth >= 999 时，返回当前目录及其所有深度的子目录。
 #>
-function Get-Directory-Depth {
+function Get-DirectoryDepth {
     param (
         [Parameter(Mandatory = $true)]
         [string]$Path,
@@ -120,4 +120,4 @@ function Remove-EmptyDirectories {
     }
 }
 
-Export-ModuleMember -Function Create-Directories, Get-Directory-Depth, Remove-EmptyDirectories
+Export-ModuleMember -Function New-Directories, Get-DirectoryDepth, Remove-EmptyDirectories

@@ -12,17 +12,17 @@ param(
 function Start-VmafTask {
     # 动态确定一个日志文件名字
     $logFileName = "ff-vmaf_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
-    Init-Log $logFileName
+    Initialize-Log $logFileName
 
-    Log-Message -message "=> [VMAF] 启动源文件参考目录: $SourceDir"
-    Log-Message -message "=> [VMAF] 参与测评的压制组: $($EncodedDirs -join ', ')"
+    Write-LogMessage -message "=> [VMAF] 启动源文件参考目录: $SourceDir"
+    Write-LogMessage -message "=> [VMAF] 参与测评的压制组: $($EncodedDirs -join ', ')"
 
     $csvOutput = Join-Path (Get-Location).Path "VMAF_Report_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
     $pivotHash = [ordered]@{}
     $verticalArray = @()
     
     if (-not (Test-Path -LiteralPath $SourceDir -PathType Container)) {
-        Log-Message -message "[Error] 找不到源目录: $SourceDir" 
+        Write-LogMessage -message "[Error] 找不到源目录: $SourceDir" 
         return
     }
 
@@ -31,7 +31,7 @@ function Start-VmafTask {
 
     foreach ($encDir in $EncodedDirs) {
         if (-not (Test-Path -LiteralPath $encDir -PathType Container)) {
-            Log-Message -message "[Warn] 找不到编码目录，已跳过: $encDir" 
+            Write-LogMessage -message "[Warn] 找不到编码目录，已跳过: $encDir" 
             continue
         }
 
@@ -97,7 +97,7 @@ function Start-VmafTask {
                 $ratio = ($tgtSize / $srcSize).ToString("P2")
             }
 
-            Log-Message -message "VMAF 计算中: [$encFolderName] $srcRelativePath ..." 
+            Write-LogMessage -message "VMAF 计算中: [$encFolderName] $srcRelativePath ..." 
 
             # FFmpeg libvmaf 核心对比指令
             # -i 转换后的失真图/视频 -i 高质量源图/视频
@@ -118,9 +118,9 @@ function Start-VmafTask {
             
             if ($null -ne $vmafLine -and $vmafLine -match "VMAF score: ([\d\.]+)") {
                 $vmafScore = $matches[1]
-                Log-Message -message "  > 目录组: $encFolderName | 原大小: $([math]::Round($srcSize/1KB,2))KB | 新大小: $([math]::Round($tgtSize/1KB,2))KB | 压缩百分比: $ratio | VMAF: $vmafScore" 
+                Write-LogMessage -message "  > 目录组: $encFolderName | 原大小: $([math]::Round($srcSize/1KB,2))KB | 新大小: $([math]::Round($tgtSize/1KB,2))KB | 压缩百分比: $ratio | VMAF: $vmafScore" 
             } else {
-                Log-Message -message "  > [Warn] 无法解析出该文件的 VMAF 结果" 
+                Write-LogMessage -message "  > [Warn] 无法解析出该文件的 VMAF 结果" 
             }
 
             if ($Vertical) {
@@ -161,10 +161,10 @@ function Start-VmafTask {
     }
 
     if ($hasResults) {
-        Log-Message -message "==============================================="
-        Log-Message -message "VMAF 测试计算完毕! CSV 报表已生成至: $csvOutput" 
+        Write-LogMessage -message "==============================================="
+        Write-LogMessage -message "VMAF 测试计算完毕! CSV 报表已生成至: $csvOutput" 
     } else {
-        Log-Message -message "未能在此次任务中完成任何有效的 VMAF 对比和分析!" 
+        Write-LogMessage -message "未能在此次任务中完成任何有效的 VMAF 对比和分析!" 
     }
 }
 

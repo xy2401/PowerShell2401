@@ -39,21 +39,21 @@ $global:GlobalConfig = Get-GlobalConfig -ProjectRoot $PSScriptRoot -Arguments $R
  
 
  
-Init-Log
+Initialize-Log
 
   
-Log-Message "Action:`n$Action" -Level Info
-Log-Message "RemainingArguments:`n$RemainingArguments" -Level Info
+Write-LogMessage "Action:`n$Action" -Level Info
+Write-LogMessage "RemainingArguments:`n$RemainingArguments" -Level Info
 
  
 if ([string]::IsNullOrWhiteSpace($Action)) {
     # 情况 A: 未提供动作参数，默认执行 help
-    Log-Message "未提供动作参数，默认执行 help"
+    Write-LogMessage "未提供动作参数，默认执行 help"
     $Action = "help" 
 }
 elseif (-not (Test-Path -LiteralPath (Join-Path $ProjectFunctions "$Action.ps1"))) {
     # 情况 B: 提供了动作但文件不存在，记录警告并重定向到 help
-    Log-Message "未识别的命令: $Action" -Level Warning
+    Write-LogMessage "未识别的命令: $Action" -Level Warning
     $Action = "help" 
 }
   

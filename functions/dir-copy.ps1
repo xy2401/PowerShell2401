@@ -35,9 +35,9 @@ $suffix = ".copy"
 Update-Target -suffix $suffix
 $runtime = $global:GlobalConfig.runtime
 
-Log-Message "开始拷贝文件..." -Level Info
-Log-Message "源目录: $($runtime.WorkDir)" -Level Info
-Log-Message "目标目录: $($runtime.TargetDir)" -Level Info
+Write-LogMessage "开始拷贝文件..." -Level Info
+Write-LogMessage "源目录: $($runtime.WorkDir)" -Level Info
+Write-LogMessage "目标目录: $($runtime.TargetDir)" -Level Info
 
 # 处理后缀名参数，统一处理前导 "."
 $extList = @()
@@ -49,7 +49,7 @@ if ($Extension) {
 }
 
 # 2. 调用 lib/Directory.psm1 中的函数创建目录层级
-Create-Directories -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
+New-Directories -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
 
 # 3. 遍历文件并复制
 $sourceDir = $runtime.WorkDir
@@ -122,16 +122,16 @@ Get-ChildItem -LiteralPath $sourceDir -File -Recurse | ForEach-Object {
     }
     catch {
         $errMsg = $_.Exception.Message
-        Log-Message "拷贝文件失败: $relativePath - $errMsg" -Level Error
+        Write-LogMessage "拷贝文件失败: $relativePath - $errMsg" -Level Error
     }
 }
 
-Log-Message "拷贝目录操作完成！共拷贝 $copiedCount 个文件。" -Level Success
+Write-LogMessage "拷贝目录操作完成！共拷贝 $copiedCount 个文件。" -Level Success
 if ($DeleteOriginal) {
-    Log-Message "已开启删除原始文件选项，符合条件的原始文件已被清理。" -Level Info
+    Write-LogMessage "已开启删除原始文件选项，符合条件的原始文件已被清理。" -Level Info
 }
 
 # 4. 清理目标目录中的空文件夹
-Log-Message "正在清理目标目录中的空文件夹..." -Level Info
+Write-LogMessage "正在清理目标目录中的空文件夹..." -Level Info
 Remove-EmptyDirectories -Path $runtime.TargetDir
-Log-Message "空文件夹清理完成！" -Level Success
+Write-LogMessage "空文件夹清理完成！" -Level Success

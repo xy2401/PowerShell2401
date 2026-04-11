@@ -30,15 +30,15 @@ $workDir = $runtime.WorkDir
 
 # 动态确定一个日志文件名字
 $logFileName = "dir-void_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
-Init-Log $logFileName
+Initialize-Log $logFileName
 
-Log-Message "Scanning for 'void' directories (Depth: $Depth)..." -Level Info
-if ($isPreview) { Log-Message "[Mode] Preview (Check only)" -Level Info }
-if ($Delete) { Log-Message "[Mode] Delete empty directories enabled" -Level Warning }
-if ($MoveUp) { Log-Message "[Mode] Move-Up redundant directories enabled" -Level Warning }
+Write-LogMessage "Scanning for 'void' directories (Depth: $Depth)..." -Level Info
+if ($isPreview) { Write-LogMessage "[Mode] Preview (Check only)" -Level Info }
+if ($Delete) { Write-LogMessage "[Mode] Delete empty directories enabled" -Level Warning }
+if ($MoveUp) { Write-LogMessage "[Mode] Move-Up redundant directories enabled" -Level Warning }
 
 # 使用通用深度寻层逻辑获取目标目录
-$targetDirs = Get-Directory-Depth -Path $workDir -Depth $Depth
+$targetDirs = Get-DirectoryDepth -Path $workDir -Depth $Depth
 
 $emptyCount = 0
 $redundantCount = 0
@@ -58,14 +58,14 @@ foreach ($dir in $targetDirs) {
     # 逻辑 A: 绝对空目录
     if ($fileCount -eq 0 -and $dirCount -eq 0) {
         $emptyCount++
-        Log-Message "[Empty] $dirPath" -Level Warning
+        Write-LogMessage "[Empty] $dirPath" -Level Warning
         if ($Delete) {
             try {
                 Remove-Item -LiteralPath $dirPath -Force -ErrorAction Stop
-                Log-Message "  -> Deleted." -Level Success
+                Write-LogMessage "  -> Deleted." -Level Success
             }
             catch {
-                Log-Message "  -> [Error] Failed to delete: $_" -Level Error
+                Write-LogMessage "  -> [Error] Failed to delete: $_" -Level Error
             }
         }
     }
@@ -73,12 +73,12 @@ foreach ($dir in $targetDirs) {
     elseif ($fileCount -eq 0 -and $dirCount -eq 1) {
         $redundantCount++
         $targetSubDir = $subDirs[0]
-        Log-Message "[Redundant] $dirPath (Contains: $($targetSubDir.Name))" -Level Warning
+        Write-LogMessage "[Redundant] $dirPath (Contains: $($targetSubDir.Name))" -Level Warning
         
         if ($MoveUp) {
             $parentDir = $dir.Parent.FullName
             if (-not $parentDir) { 
-                Log-Message "  -> [Skip] Cannot move subfolder of root directory." -Level Warning
+                Write-LogMessage "  -> [Skip] Cannot move subfolder of root directory." -Level Warning
                 continue 
             }
 
@@ -87,7 +87,7 @@ foreach ($dir in $targetDirs) {
             # 处理命名冲突
             if (Test-Path -LiteralPath $destPath) {
                 $destPath += ".move"
-                Log-Message "  -> Conflict detected, renaming to: $($targetSubDir.Name).move" -Level Info
+                Write-LogMessage "  -> Conflict detected, renaming to: $($targetSubDir.Name).move" -Level Info
             }
 
             try {
@@ -95,17 +95,17 @@ foreach ($dir in $targetDirs) {
                 Move-Item -LiteralPath $targetSubDir.FullName -Destination $destPath -ErrorAction Stop
                 # 删除现在的空父目录
                 Remove-Item -LiteralPath $dirPath -Force -ErrorAction Stop
-                Log-Message "  -> Subfolder moved and redundant parent removed." -Level Success
+                Write-LogMessage "  -> Subfolder moved and redundant parent removed." -Level Success
             }
             catch {
-                Log-Message "  -> [Error] Failed to move/cleanup: $_" -Level Error
+                Write-LogMessage "  -> [Error] Failed to move/cleanup: $_" -Level Error
             }
         }
     }
 }
 
-Log-Message "`nScan Complete." -Level Info
-Log-Message "Found $emptyCount empty folders and $redundantCount redundant folders." -Level Info
+Write-LogMessage "`nScan Complete." -Level Info
+Write-LogMessage "Found $emptyCount empty folders and $redundantCount redundant folders." -Level Info
 if ($isPreview) {
-    Log-Message "Hint: Run with '-Delete' or '-MoveUp' to perform cleanup actions." -Level Info
+    Write-LogMessage "Hint: Run with '-Delete' or '-MoveUp' to perform cleanup actions." -Level Info
 }

@@ -30,12 +30,12 @@ function Start-NvEncodingTask {
     $suffix = ".av1_nvenc" 
     Update-Target -suffix $suffix
     $runtime = $global:GlobalConfig.runtime
-    Init-Log  ( $runtime.TargetDirName + ".log"  )
+    Initialize-Log  ( $runtime.TargetDirName + ".log"  )
     # 先创建所有目录
-    Create-Directories -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
+    New-Directories -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
     $startTime = Get-Date
     Process-NvDirectory  -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
-    Log-Message -message "Encode cost $(((Get-Date) - $startTime).TotalSeconds) Seconds"
+    Write-LogMessage -message "Encode cost $(((Get-Date) - $startTime).TotalSeconds) Seconds"
 }
 
 function Start-NvGridTestTask {
@@ -57,12 +57,12 @@ function Start-NvGridTestTask {
             $suffix = "_ffnv_$($preset)_cq$($cq)"  
             Update-Target -suffix $suffix
             $runtime = $global:GlobalConfig.runtime 
-            Init-Log ( $runtime.TargetDirName + ".log" )
+            Initialize-Log ( $runtime.TargetDirName + ".log" )
             # 先创建所有目录
-            Create-Directories -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
+            New-Directories -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
             $startTime = Get-Date
             Process-NvDirectory -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir 
-            Log-Message -message "Encode cost $(((Get-Date) - $startTime).TotalSeconds) Seconds"
+            Write-LogMessage -message "Encode cost $(((Get-Date) - $startTime).TotalSeconds) Seconds"
         }
     } 
 }
@@ -111,7 +111,7 @@ function Process-NvDirectory {
         while ($action -ne "return") {
             switch ($action) {
                 "encode" {
-                    Log-Message -message "encode $targetFile" 
+                    Write-LogMessage -message "encode $targetFile" 
                     if (Test-Path -LiteralPath $targetFile) { Remove-Item -LiteralPath $targetFile }
                     Convert-MediaToNv -inputFile $sourceFile -outputFile $targetFile
                     $action = "return"
@@ -120,7 +120,7 @@ function Process-NvDirectory {
                     }
                 }
                 "trunc" {
-                    Log-Message -message "encode trunc $targetFile" 
+                    Write-LogMessage -message "encode trunc $targetFile" 
                     if (Test-Path -LiteralPath $targetFile) { Remove-Item -LiteralPath $targetFile }
                     Convert-MediaToNv -inputFile $sourceFile -outputFile $targetFile -trunc 1 
                     $action = "return"
@@ -129,7 +129,7 @@ function Process-NvDirectory {
                     }
                 }
                 "hardLink" {
-                    Log-Message -message "hard link $targetFile" 
+                    Write-LogMessage -message "hard link $targetFile" 
                     if (Test-Path -LiteralPath $targetFile) { Remove-Item -LiteralPath $targetFile }
                     New-Item -ItemType HardLink -Path $targetFile -Target $sourceFile | Out-Null
                     $action = "return"
@@ -180,7 +180,7 @@ function Convert-MediaToNv {
     $allArgs += $outputFile
     $allArgs += "-y" # 默认覆盖
 
-    Log-Message -message "Executing: $exe $($allArgs -join ' ')"
+    Write-LogMessage -message "Executing: $exe $($allArgs -join ' ')"
 
     $runtime = $global:GlobalConfig.runtime  
     if ($runtime.IsDebug -and $null -ne $runtime.LogFilePath) {
@@ -206,7 +206,7 @@ $profileConfigs = @{
 $currentProfile = $Profile.ToLower()
 
 if ($currentProfile -eq "for") {
-    Log-Message -message "=> [Profile: for] 调用 Start-NvGridTestTask 硬件参数遍历生成"
+    Write-LogMessage -message "=> [Profile: for] 调用 Start-NvGridTestTask 硬件参数遍历生成"
     Start-NvGridTestTask
 } 
 else {
@@ -229,7 +229,7 @@ else {
     $finalPreset = $script:SharedArgs['preset'] ?? $preset
     $finalCq = $script:SharedArgs['cq'] ?? $cq
     
-    Log-Message -message "=> [Profile: $currentProfile] $($config.desc) (NVENC 实际下发配置: preset=$finalPreset, cq=$finalCq)"
+    Write-LogMessage -message "=> [Profile: $currentProfile] $($config.desc) (NVENC 实际下发配置: preset=$finalPreset, cq=$finalCq)"
     
     Start-NvEncodingTask 
 }

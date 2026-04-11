@@ -9,13 +9,13 @@ function Start-InfoTask {
     $suffix = ".info" 
     Update-Target -suffix $suffix
     $runtime = $global:GlobalConfig.runtime
-    Init-Log  ( $runtime.TargetDirName + ".log"  )
+    Initialize-Log  ( $runtime.TargetDirName + ".log"  )
     
     # 先创建所有目录
-    Create-Directories -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
+    New-Directories -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
     $startTime = Get-Date
     Process-InfoDirectory -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
-    Log-Message -message "Info extraction cost $(((Get-Date) - $startTime).TotalSeconds) Seconds"
+    Write-LogMessage -message "Info extraction cost $(((Get-Date) - $startTime).TotalSeconds) Seconds"
 }
 
 function Process-InfoDirectory {
@@ -36,7 +36,7 @@ function Process-InfoDirectory {
         if ($fileType -eq "image" -or $fileType -eq "video") { 
             # 转换目标文件名为 .info.json
             $targetFile = $targetFile -replace "\.[^.]+$", ".info.json" 
-            Log-Message -message "extract $fileType info: $targetFile" 
+            Write-LogMessage -message "extract $fileType info: $targetFile" 
             
             if (Test-Path -LiteralPath $targetFile) { Remove-Item -LiteralPath $targetFile }
             
@@ -46,11 +46,11 @@ function Process-InfoDirectory {
                 # 写入到同名源文件在 targetDir 下对应的 .info.json 中
                 $probeOutput | Out-File -LiteralPath $targetFile -Encoding utf8
             } else {
-                Log-Message -message "[Warn] ffprobe return empty for: $sourceFile" 
+                Write-LogMessage -message "[Warn] ffprobe return empty for: $sourceFile" 
             }
         }
         else {
-            Log-Message -message "hard link non-media: $targetFile" 
+            Write-LogMessage -message "hard link non-media: $targetFile" 
             if (Test-Path -LiteralPath $targetFile) { Remove-Item -LiteralPath $targetFile }
             New-Item -ItemType HardLink -Path $targetFile -Target $sourceFile | Out-Null
         }

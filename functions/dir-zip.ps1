@@ -34,7 +34,7 @@ if (-not (Test-Path -LiteralPath $runtime.TargetDir)) {
 $sourceDir = (Get-Item -LiteralPath $Path).FullName
 
 # 严格锁定处理只在指定的精确深度级产生 (杜绝交叉返回父子包含路径)
-$targetDirs = Get-Directory-Depth -Path $Path -Depth $Depth
+$targetDirs = Get-DirectoryDepth -Path $Path -Depth $Depth
 
 Write-Host "=> [Dir-Zip] 开始处理压缩任务，共选中 $($targetDirs.Count) 个目录" -ForegroundColor Cyan
 

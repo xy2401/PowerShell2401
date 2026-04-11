@@ -17,23 +17,23 @@ param(
     $RemainingArguments
 )
 
-Log-Message '------ [Debug Log] 开启传入参数测试 ------' -Level Info
+Write-LogMessage '------ [Debug Log] 开启传入参数测试 ------' -Level Info
 
 # 遍历并打印所有成功捕获的具名参数
 foreach ($key in $PSBoundParameters.Keys) {
     if ($key -ne 'RemainingArguments') {
-        Log-Message "捕获到具名参数: [$key] = $($PSBoundParameters[$key])" -Level Info
+        Write-LogMessage "捕获到具名参数: [$key] = $($PSBoundParameters[$key])" -Level Info
     }
 }
 
 # 打印没有被捕获进具名参数的剩余流浪参数
-Log-Message "未捕获的剩余参数 ($($RemainingArguments.Count) 个): [$($RemainingArguments -join ', ')]" -Level Info
+Write-LogMessage "未捕获的剩余参数 ($($RemainingArguments.Count) 个): [$($RemainingArguments -join ', ')]" -Level Info
 
 # 打印配置项
 $runtimeJson = $GlobalConfig.runtime | ConvertTo-Json  
-Log-Message "当前 Runtime 配置详情:`n$runtimeJson" -Level Info
+Write-LogMessage "当前 Runtime 配置详情:`n$runtimeJson" -Level Info
 
-Log-Message '------ [Debug Log] 脚本执行完毕 ------' -Level Success
+Write-LogMessage '------ [Debug Log] 脚本执行完毕 ------' -Level Success
 
 
 # 在脚本逻辑中

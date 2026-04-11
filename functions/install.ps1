@@ -10,7 +10,7 @@ $TargetHome = $runtime.ProjectRoot
 
 if ($null -ne $CurrentHome) {
     # --- Uninstall ---
-    Log-Message "Installation detected. Uninstalling..." -Level Warning
+    Write-LogMessage "Installation detected. Uninstalling..." -Level Warning
 
     # 1. 从用户注册表的 Path 中移除
     $Path = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User)
@@ -20,9 +20,9 @@ if ($null -ne $CurrentHome) {
     $NewPath = @($PathEntries | Where-Object { $_ -ne "" }) -join ";"
     
     if ($Path -ne $NewPath) {
-        Log-Message "Registry PATH Update: Backing up old path to pw2401_old_path" -Level Info
-        Log-Message "Old PATH: $Path" -Level Info
-        Log-Message "New PATH: $NewPath" -Level Success
+        Write-LogMessage "Registry PATH Update: Backing up old path to pw2401_old_path" -Level Info
+        Write-LogMessage "Old PATH: $Path" -Level Info
+        Write-LogMessage "New PATH: $NewPath" -Level Success
         [Environment]::SetEnvironmentVariable("pw2401_old_path", $Path, [EnvironmentVariableTarget]::User)
         [Environment]::SetEnvironmentVariable("Path", $NewPath, [EnvironmentVariableTarget]::User)
     }
@@ -41,11 +41,11 @@ if ($null -ne $CurrentHome) {
         $_ -ne $CurrentHome
     }) -join ";"
 
-    Log-Message "Successfully removed '$EnvVarName' and cleaned up PATH." -Level Success
+    Write-LogMessage "Successfully removed '$EnvVarName' and cleaned up PATH." -Level Success
 }
 else {
     # --- Install ---
-    Log-Message "Installing..." -Level Info
+    Write-LogMessage "Installing..." -Level Info
 
     # 1. 设置持久化环境变量
     [Environment]::SetEnvironmentVariable($EnvVarName, $TargetHome, [EnvironmentVariableTarget]::User)
@@ -61,9 +61,9 @@ else {
 
     if ($NewEntries.Count -gt 0) {
         $NewPath = (@($PathEntries | Where-Object { $_ -ne "" }) + $NewEntries) -join ";"
-        Log-Message "Registry PATH Update: Backing up old path to pw2401_old_path" -Level Info
-        Log-Message "Old PATH: $Path" -Level Info
-        Log-Message "New PATH: $NewPath" -Level Success
+        Write-LogMessage "Registry PATH Update: Backing up old path to pw2401_old_path" -Level Info
+        Write-LogMessage "Old PATH: $Path" -Level Info
+        Write-LogMessage "New PATH: $NewPath" -Level Success
         [Environment]::SetEnvironmentVariable("pw2401_old_path", $Path, [EnvironmentVariableTarget]::User)
         [Environment]::SetEnvironmentVariable("Path", $NewPath, [EnvironmentVariableTarget]::User)
     }
@@ -72,5 +72,5 @@ else {
     $env:pw2401_home = $TargetHome
     $env:Path = "$TargetHome;$env:Path"
 
-    Log-Message "Installation complete. Registry updated." -Level Success
+    Write-LogMessage "Installation complete. Registry updated." -Level Success
 }

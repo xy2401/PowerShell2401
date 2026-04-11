@@ -31,12 +31,12 @@ function Start-SvtEncodingTask {
     $suffix = ".av1_svt" 
     Update-Target -suffix $suffix
     $runtime = $global:GlobalConfig.runtime
-    Init-Log  ( $runtime.TargetDirName + ".log"  )
+    Initialize-Log  ( $runtime.TargetDirName + ".log"  )
     # 先创建所有目录
-    Create-Directories -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
+    New-Directories -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
     $startTime = Get-Date
     Process-SvtDirectory  -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
-    Log-Message -message "Encode cost $(((Get-Date) - $startTime).TotalSeconds) Seconds"
+    Write-LogMessage -message "Encode cost $(((Get-Date) - $startTime).TotalSeconds) Seconds"
 
 }
 
@@ -66,12 +66,12 @@ function Start-SvtGridTestTask {
                 $suffix = "_ffsvt_p$($preset)_c$($crf)_g$($grain)"  
                 Update-Target -suffix $suffix
                 $runtime = $global:GlobalConfig.runtime 
-                Init-Log (  $runtime.TargetDirName + ".log"  )
+                Initialize-Log (  $runtime.TargetDirName + ".log"  )
                 # 先创建所有目录
-                Create-Directories -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
+                New-Directories -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
                 $startTime = Get-Date
                 Process-SvtDirectory  -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir 
-                Log-Message -message "Encode cost $(((Get-Date) - $startTime).TotalSeconds) Seconds"
+                Write-LogMessage -message "Encode cost $(((Get-Date) - $startTime).TotalSeconds) Seconds"
        
             }
         }
@@ -124,7 +124,7 @@ function Process-SvtDirectory {
         while ($action -ne "return") {
             switch ($action) {
                 "encode" {
-                    Log-Message -message "encode $targetFile" 
+                    Write-LogMessage -message "encode $targetFile" 
                     if (Test-Path -LiteralPath $targetFile) { 
                         Remove-Item -LiteralPath $targetFile 
                     }
@@ -135,7 +135,7 @@ function Process-SvtDirectory {
                     }
                 }
                 "trunc" {
-                    Log-Message -message  "encode trunc $targetFile" 
+                    Write-LogMessage -message  "encode trunc $targetFile" 
                     if (Test-Path -LiteralPath $targetFile) { 
                         Remove-Item -LiteralPath $targetFile 
                     }
@@ -146,7 +146,7 @@ function Process-SvtDirectory {
                     }
                 }
                 "hardLink" {
-                    Log-Message -message  "hard link  $targetFile" 
+                    Write-LogMessage -message  "hard link  $targetFile" 
                     if (Test-Path -LiteralPath $targetFile) { 
                         Remove-Item -LiteralPath $targetFile 
                     }
@@ -219,7 +219,7 @@ function Convert-MediaToSvt {
     $allArgs += $outputFile
     $allArgs += "-y" # 默认覆盖
 
-    Log-Message -message "Executing: $exe $($allArgs -join ' ')"
+    Write-LogMessage -message "Executing: $exe $($allArgs -join ' ')"
 
     $runtime = $global:GlobalConfig.runtime  
     if ($runtime.IsDebug -and $null -ne $runtime.LogFilePath) {
@@ -245,7 +245,7 @@ $profileConfigs = @{
 $currentProfile = $Profile.ToLower()
 
 if ($currentProfile -eq "for") {
-    Log-Message -message "=> [Profile: for] 调用 Start-SvtGridTestTask 参数遍历生成"
+    Write-LogMessage -message "=> [Profile: for] 调用 Start-SvtGridTestTask 参数遍历生成"
     Start-SvtGridTestTask
 } 
 else {
@@ -268,7 +268,7 @@ else {
     $finalPreset = $script:SharedArgs['preset'] ?? $preset
     $finalCrf = $script:SharedArgs['crf'] ?? $crf
     
-    Log-Message -message "=> [Profile: $currentProfile] $($config.desc) (实际下发配置: preset=$finalPreset, crf=$finalCrf)"
+    Write-LogMessage -message "=> [Profile: $currentProfile] $($config.desc) (实际下发配置: preset=$finalPreset, crf=$finalCrf)"
     
     Start-SvtEncodingTask 
 }

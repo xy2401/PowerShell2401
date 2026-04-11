@@ -88,10 +88,10 @@ function Get-CropInfo {
     $Result.IsUniformMode = $true
 
     if ($CropSize -eq "Auto") {
-        Log-Message "--- 分析图片尺寸众数 ---" -Level Info
+        Write-LogMessage "--- 分析图片尺寸众数 ---" -Level Info
         $SizeGroups = $ValidFiles | Group-Object -Property { "$($_.Width)x$($_.Height)" } | Sort-Object Count -Descending
         $ModeSize = $SizeGroups[0].Name
-        Log-Message "得出最常见尺寸 (众数): $ModeSize (占比 $($SizeGroups[0].Count) / $($ValidFiles.Count))" -Level Success
+        Write-LogMessage "得出最常见尺寸 (众数): $ModeSize (占比 $($SizeGroups[0].Count) / $($ValidFiles.Count))" -Level Success
         
         $ModeParts = $ModeSize.Split('x')
         $Result.TargetRatioW = [int]$ModeParts[0]
@@ -101,10 +101,10 @@ function Get-CropInfo {
         $ModeParts = $CropSize.Split('x')
         $Result.TargetRatioW = [int]$ModeParts[0]
         $Result.TargetRatioH = [int]$ModeParts[1]
-        Log-Message "指定强制裁剪比例尺寸: $($Result.TargetRatioW)x$($Result.TargetRatioH)" -Level Info
+        Write-LogMessage "指定强制裁剪比例尺寸: $($Result.TargetRatioW)x$($Result.TargetRatioH)" -Level Info
     }
     else {
-        Log-Message "CropSize 参数格式错误，应类似 '1920x1080' 或 'Auto'。功能已关闭，回退为原生比例瀑布流。" -Level Warning
+        Write-LogMessage "CropSize 参数格式错误，应类似 '1920x1080' 或 'Auto'。功能已关闭，回退为原生比例瀑布流。" -Level Warning
         $Result.IsUniformMode = $false
     }
 
@@ -161,7 +161,7 @@ function Get-MasonryLayout {
         $OldH = $ColHeights[$TargetCol]
         $NewH = $OldH + $ScaledH + $Config.Gap
 
-        Log-Message "[Layout] [$i] $($File.Name) | Origin: ${W}x${H} | ScaledH: $ScaledH | Col: $TargetCol | MathOldH: $OldH | MathNewH: $NewH" -Level Info
+        Write-LogMessage "[Layout] [$i] $($File.Name) | Origin: ${W}x${H} | ScaledH: $ScaledH | Col: $TargetCol | MathOldH: $OldH | MathNewH: $NewH" -Level Info
 
         if ($Config.ShowFileName) {
             $EscapedName = $File.Name.Replace(":", "\\:").Replace("'", "").Replace("[", "\[").Replace("]", "\]")
@@ -218,11 +218,11 @@ $TargetFolder = $runtime.TargetDir
 $IsDebug = $runtime.IsDebug
 
 if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue) -or -not (Get-Command ffprobe -ErrorAction SilentlyContinue)) {
-    Log-Message "未找到 FFmpeg 或 FFprobe，请确保它们已添加至系统环境变量中。" -Level Error
+    Write-LogMessage "未找到 FFmpeg 或 FFprobe，请确保它们已添加至系统环境变量中。" -Level Error
     return
 }
 
-$TargetFolders = Get-Directory-Depth -Path $InputFolder -Depth $Depth
+$TargetFolders = Get-DirectoryDepth -Path $InputFolder -Depth $Depth
 
 foreach ($TargetFolderItem in $TargetFolders) {
     $AbsoluteInputPath = $TargetFolderItem.FullName
@@ -253,21 +253,21 @@ foreach ($TargetFolderItem in $TargetFolders) {
     $AbsoluteCsvPath = [System.IO.Path]::GetFullPath((Join-Path $OutputBaseDir "$FolderName.$Suffix.layout.csv"))
     # --------------------------
 
-    Log-Message "`n=======================================================" -Level Info
-    Log-Message "开始处理目录: $AbsoluteInputPath" -Level Info
-    Log-Message "=======================================================" -Level Info
+    Write-LogMessage "`n=======================================================" -Level Info
+    Write-LogMessage "开始处理目录: $AbsoluteInputPath" -Level Info
+    Write-LogMessage "=======================================================" -Level Info
 
-    Log-Message "--- 1. 路径配置确认 ---" -Level Info
-    Log-Message "执行目录 (素材): $AbsoluteInputPath"
-    Log-Message "目标输出目录: $OutputBaseDir"
-    Log-Message "输出文件: $AbsoluteOutputFile"
+    Write-LogMessage "--- 1. 路径配置确认 ---" -Level Info
+    Write-LogMessage "执行目录 (素材): $AbsoluteInputPath"
+    Write-LogMessage "目标输出目录: $OutputBaseDir"
+    Write-LogMessage "输出文件: $AbsoluteOutputFile"
     if ($IsDebug) { 
-        Log-Message "滤镜脚本: $AbsoluteFilterPath"
-        Log-Message "统计文件: $AbsoluteCsvPath" 
+        Write-LogMessage "滤镜脚本: $AbsoluteFilterPath"
+        Write-LogMessage "统计文件: $AbsoluteCsvPath" 
     }
 
     # 1. 智能媒体探测
-    Log-Message "`n--- 2. 扫描素材并计算瀑布流布局 ---" -Level Info
+    Write-LogMessage "`n--- 2. 扫描素材并计算瀑布流布局 ---" -Level Info
     $ValidFiles = @()
     $AllFiles = Get-ChildItem -LiteralPath $AbsoluteInputPath -File
 
@@ -289,7 +289,7 @@ foreach ($TargetFolderItem in $TargetFolders) {
             $TrueInfo = Get-ImageTrueDimensions -FilePath $File.FullName -RawWidth $MediaInfo.Width -RawHeight $MediaInfo.Height
 
             if ($IsDebug) {
-                Log-Message "[EXIF Check] $($File.Name) | Raw: $($MediaInfo.Width)x$($MediaInfo.Height) | EXIF: $($TrueInfo.Exif) | Final: $($TrueInfo.Width)x$($TrueInfo.Height)" -Level Info
+                Write-LogMessage "[EXIF Check] $($File.Name) | Raw: $($MediaInfo.Width)x$($MediaInfo.Height) | EXIF: $($TrueInfo.Exif) | Final: $($TrueInfo.Width)x$($TrueInfo.Height)" -Level Info
             }
 
             $ValidFiles += [PSCustomObject]@{
@@ -301,17 +301,17 @@ foreach ($TargetFolderItem in $TargetFolders) {
     }
 
     if ($ValidFiles.Count -eq 0) { 
-        Log-Message "目录 [$AbsoluteInputPath] 中没有可处理的图片，跳过。" -Level Warning
+        Write-LogMessage "目录 [$AbsoluteInputPath] 中没有可处理的图片，跳过。" -Level Warning
         continue 
     }
 
     # 按相对高度比例排序（等宽缩放后的实际高度降序）
     if ($Sort -eq "VerticalRatio") {
         $ValidFiles = @($ValidFiles | Sort-Object -Property @{ Expression = { $_.Height / $_.Width }; Descending = $true })
-        Log-Message "已按照图片目标缩放纵向比例 (VerticalRatio) 降序重排。" -Level Info
+        Write-LogMessage "已按照图片目标缩放纵向比例 (VerticalRatio) 降序重排。" -Level Info
     }
 
-    Log-Message "成功找到 $($ValidFiles.Count) 张图片。" -Level Success
+    Write-LogMessage "成功找到 $($ValidFiles.Count) 张图片。" -Level Success
 
     # 1.5 计算裁剪尺寸信息
     $CropInfo = Get-CropInfo -ValidFiles $ValidFiles -CropSize $CropSize
@@ -333,7 +333,7 @@ foreach ($TargetFolderItem in $TargetFolders) {
     Get-MasonryLayout -ValidFiles $ValidFiles -Config $LayoutContext
 
     # 3. 写入 Filter Script
-    Log-Message "`n--- 3. 生成滤镜脚本 ---" -Level Info
+    Write-LogMessage "`n--- 3. 生成滤镜脚本 ---" -Level Info
     $VLabels = ""
     for ($k = 0; $k -lt $ValidFiles.Count; $k++) { $VLabels += "[v$k]" }
     
@@ -341,29 +341,29 @@ foreach ($TargetFolderItem in $TargetFolders) {
     $FinalFilter | Out-File -LiteralPath $AbsoluteFilterPath -Encoding utf8 -Force
 
     # 4. 运行 FFmpeg
-    Log-Message "`n--- 4. 启动渲染 ---" -Level Info
+    Write-LogMessage "`n--- 4. 启动渲染 ---" -Level Info
     Push-Location -LiteralPath $AbsoluteInputPath
 
     $FfmpegCommandArgs = @("-hide_banner", "-loglevel", "warning")
     $FfmpegCommandArgs += $LayoutContext.FfmpegInputArgs
     $FfmpegCommandArgs += "-/filter_complex", $AbsoluteFilterPath, "-q:v", "$JpegQuality", "-y", $AbsoluteOutputFile
 
-    Log-Message "即将执行的完整命令: ffmpeg $($FfmpegCommandArgs -join ' ')" -Level Info
+    Write-LogMessage "即将执行的完整命令: ffmpeg $($FfmpegCommandArgs -join ' ')" -Level Info
     
     try {
         & ffmpeg @FfmpegCommandArgs
     }
     catch {
-        Log-Message "执行 FFmpeg 时发生严重异常: $_" -Level Error
+        Write-LogMessage "执行 FFmpeg 时发生严重异常: $_" -Level Error
     }
     finally {
         Pop-Location
         
         if ($LASTEXITCODE -eq 0) {
-            Log-Message "`n[成功] 文件已生成: $AbsoluteOutputFile" -Level Success
+            Write-LogMessage "`n[成功] 文件已生成: $AbsoluteOutputFile" -Level Success
         }
         else {
-            Log-Message "`n[失败] FFmpeg 渲染出错 (ExitCode: $LASTEXITCODE)。" -Level Error
+            Write-LogMessage "`n[失败] FFmpeg 渲染出错 (ExitCode: $LASTEXITCODE)。" -Level Error
         }
 
         # 5. Debug 统计文件与清理
@@ -386,19 +386,19 @@ foreach ($TargetFolderItem in $TargetFolders) {
                 $CsvRows += ($RowNames -join ",")
             }
             $CsvRows -join "`r`n" | Out-File -LiteralPath $AbsoluteCsvPath -Encoding utf8 -Force
-            Log-Message "布局统计已保存至: $AbsoluteCsvPath" -Level Info
+            Write-LogMessage "布局统计已保存至: $AbsoluteCsvPath" -Level Info
         }
         else {
             if (Test-Path -LiteralPath $AbsoluteFilterPath) { Remove-Item -LiteralPath $AbsoluteFilterPath -Force }
             if (Test-Path -LiteralPath $AbsoluteCsvPath) { Remove-Item -LiteralPath $AbsoluteCsvPath -Force }
-            Log-Message "已清理临时滤镜文件。" -Level Info
+            Write-LogMessage "已清理临时滤镜文件。" -Level Info
         }
     }
 }
 
-Log-Message "`n正在清理目标目录中的空文件夹..." -Level Info
+Write-LogMessage "`n正在清理目标目录中的空文件夹..." -Level Info
 if (Test-Path -LiteralPath $TargetFolder) {
     Remove-EmptyDirectories -Path $TargetFolder
 }
 
-Log-Message "全部处理完成！" -Level Success
+Write-LogMessage "全部处理完成！" -Level Success
