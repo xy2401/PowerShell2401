@@ -20,11 +20,7 @@ param(
     
     # 边界轻微重叠消除的最大退让比例（例如 0.1 代表最多牺牲自己 10% 的时长以防止错位。超出此阈值则说明是真实的场景重茬，保留）。
     [Parameter()]
-    [double]$MaxYieldRatio = 0.10,
-    
-    # 开启后会在控制台打印极其详细的合并与计算切割日志
-    [Parameter()]
-    [switch]$DebugLog
+    [double]$MaxYieldRatio = 0.10
 )
 
 $runtime = $global:GlobalConfig.runtime
@@ -193,10 +189,8 @@ foreach ($baseName in $baseNames) {
 
                         if ($isMatch) {
                             $matched = $other
-                            if ($DebugLog) {
-                                $perc = if ($intersect -gt 0 -and $union -gt 0) { [math]::Round($intersect / $union * 100, 1) } else { 0 }
-                                Write-LogMessage -NoPrefix "[Step1: 1:1匹配] 第一轨($($item.Lang) 序号$($item.Index)) 及 匹配轨($($other.Lang) 序号$($other.Index)) (IoU面积比例: $perc%)" -ForegroundColor DarkCyan
-                            }
+                            $perc = if ($intersect -gt 0 -and $union -gt 0) { [math]::Round($intersect / $union * 100, 1) } else { 0 }
+                            Write-LogMessage -NoPrefix "[Step1: 1:1匹配] 第一轨($($item.Lang) 序号$($item.Index)) 及 匹配轨($($other.Lang) 序号$($other.Index)) (IoU面积比例: $perc%)" -ForegroundColor DarkCyan
                             break
                         }
                     }
@@ -252,10 +246,8 @@ foreach ($baseName in $baseNames) {
                     $crossTime = ($minEnd - $maxStart).TotalSeconds
                     if ($crossTime -ge -($Tolerance)) {
                         $overlaps = $true
-                        if ($DebugLog) {
-                            $gapType = if ($crossTime -lt 0) { "微小相距: $([math]::Abs($crossTime))s" } else { "重叠: $($crossTime)s" }
-                            Write-LogMessage -NoPrefix "[Step2: 链式缝合并发] -> 目标句($($sub.Lang) 序号$($sub.Index)) 与链内句($($cItem.Lang) 序号$($cItem.Index)) 产生 $gapType" -ForegroundColor DarkYellow
-                        }
+                        $gapType = if ($crossTime -lt 0) { "微小相距: $([math]::Abs($crossTime))s" } else { "重叠: $($crossTime)s" }
+                        Write-LogMessage -NoPrefix "[Step2: 链式缝合并发] -> 目标句($($sub.Lang) 序号$($sub.Index)) 与链内句($($cItem.Lang) 序号$($cItem.Index)) 产生 $gapType" -ForegroundColor DarkYellow
                         break
                     }
                 }
@@ -323,13 +315,13 @@ foreach ($baseName in $baseNames) {
                 # 收缩边界，并额外加 1 毫秒的安全间隙确保物理上绝对无交集
                 $prev.End -= [TimeSpan]::FromSeconds($prevCut + 0.001)
                 $next.Start += [TimeSpan]::FromSeconds($nextCut)
-                if ($DebugLog) { Write-LogMessage -NoPrefix "[Step4: 边缘修剪] 群组 $i 与 群组 $($i+1) 轻微重叠 $([math]::Round($overlapSecs, 3))s -> 完美分离 (前级削去 $([math]::Round($prevCut, 3))s, 后级削去 $([math]::Round($nextCut, 3))s)" -ForegroundColor DarkMagenta }
+                Write-LogMessage -NoPrefix "[Step4: 边缘修剪] 群组 $i 与 群组 $($i+1) 轻微重叠 $([math]::Round($overlapSecs, 3))s -> 完美分离 (前级削去 $([math]::Round($prevCut, 3))s, 后级削去 $([math]::Round($nextCut, 3))s)" -ForegroundColor DarkMagenta
             } else {
                 # 如果重叠太大超出了极限阈值，说明是刻意的对话同框或长场景重叠。
                 # 此时各自只进行其最大安全限制的退让，保留真实场景重叠状态。
                 $prev.End -= [TimeSpan]::FromSeconds($prevMaxYield)
                 $next.Start += [TimeSpan]::FromSeconds($nextMaxYield)
-                if ($DebugLog) { Write-LogMessage -NoPrefix "[Step4: 边缘修剪] 群组 $i 与 群组 $($i+1) 大幅重叠 $([math]::Round($overlapSecs, 3))s -> 仅作极值退让 (前级极值 $([math]::Round($prevMaxYield, 3))s, 后级极值 $([math]::Round($nextMaxYield, 3))s)" -ForegroundColor DarkRed }
+                Write-LogMessage -NoPrefix "[Step4: 边缘修剪] 群组 $i 与 群组 $($i+1) 大幅重叠 $([math]::Round($overlapSecs, 3))s -> 仅作极值退让 (前级极值 $([math]::Round($prevMaxYield, 3))s, 后级极值 $([math]::Round($nextMaxYield, 3))s)" -ForegroundColor DarkRed
             }
             
             # 边界防御：最极端情况坚决不能把时间轴反扣了
