@@ -16,7 +16,11 @@ param(
     
     # 面积重合率（IoU），当两个字幕时间轴交并比大于此值时，直接判定为完美匹配的1:1隔离段
     [Parameter()]
-    [double]$MatchRatio = 0.70
+    [double]$MatchRatio = 0.70,
+    
+    # 边界轻微重叠消除的最大退让比例（例如 0.1 代表最多牺牲自己 10% 的时长以防止错位。超出此阈值则说明是真实的场景重茬，保留）。
+    [Parameter()]
+    [double]$MaxYieldRatio = 0.10
 )
 
 $runtime = $global:GlobalConfig.runtime
@@ -278,6 +282,48 @@ foreach ($baseName in $baseNames) {
     
     Write-Host "  -> 合并完毕，共生成 $($exactClusters.Count) 个极准 1:1 结构，与 $($chainedClusters.Count) 个拼接混合群组 (容错: ${Tolerance}s, 拼接上限: $MaxMergeCount)"
     
+    # 步骤 4: 后期微调，解除连续字幕段落群之间的轻微时间轴重叠
+    for ($i = 0; $i -lt $clusters.Count - 1; $i++) {
+        $prev = $clusters[$i]
+        $next = $clusters[$i + 1]
+        
+        $overlapSecs = ($prev.End - $next.Start).TotalSeconds
+        # 如果存在交叉
+        if ($overlapSecs -gt 0) {
+            $prevLen = ($prev.End - $prev.Start).TotalSeconds
+            $nextLen = ($next.End - $next.Start).TotalSeconds
+            
+            # 计算双方各自的理论最大退让时间 (各 10%)
+            $prevMaxYield = $prevLen * $MaxYieldRatio
+            $nextMaxYield = $nextLen * $MaxYieldRatio
+            
+            # 如果重叠度在双方可最大退让长度之和的范围内，说明可以被完全抹平消除交集
+            if ($overlapSecs -le ($prevMaxYield + $nextMaxYield)) {
+                $totalLen = $prevLen + $nextLen
+                $prevCutRatio = 0.5
+                if ($totalLen -gt 0) {
+                    $prevCutRatio = $prevLen / $totalLen
+                }
+                
+                $prevCut = $overlapSecs * $prevCutRatio
+                $nextCut = $overlapSecs * (1 - $prevCutRatio)
+                
+                # 收缩边界，并额外加 1 毫秒的安全间隙确保物理上绝对无交集
+                $prev.End -= [TimeSpan]::FromSeconds($prevCut + 0.001)
+                $next.Start += [TimeSpan]::FromSeconds($nextCut)
+            } else {
+                # 如果重叠太大超出了极限阈值，说明是刻意的对话同框或长场景重叠。
+                # 此时各自只进行其最大安全限制的退让，保留真实场景重叠状态。
+                $prev.End -= [TimeSpan]::FromSeconds($prevMaxYield)
+                $next.Start += [TimeSpan]::FromSeconds($nextMaxYield)
+            }
+            
+            # 边界防御：最极端情况坚决不能把时间轴反扣了
+            if ($prev.End -le $prev.Start) { $prev.End = $prev.Start + [TimeSpan]::FromMilliseconds(50) }
+            if ($next.Start -ge $next.End) { $next.Start = $next.End - [TimeSpan]::FromMilliseconds(50) }
+        }
+    }
+
     # 格式化输出为新的 SRT 文本
     $outLines = New-Object System.Collections.Generic.List[string]
     $globalIndex = 1
