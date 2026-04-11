@@ -61,7 +61,7 @@ function Start-SrtSplitTask {
             }
             
             # id 为顺序编号加语言名，如 01.eng 
-            $id = "{0:D2}.$lang" -f $counter
+            $id = "{0:D2}-$lang" -f $counter
             
             $outFileName = "$baseName.$id.srt"
             $outFilePath = Join-Path -Path $dir -ChildPath $outFileName
