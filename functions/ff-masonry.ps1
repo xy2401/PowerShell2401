@@ -45,7 +45,7 @@ param (
     [string]$BackgroundColor = "white",
 
     [Parameter(HelpMessage = "是否在图片上方显示文件名。默认 `$false。")]
-    [bool]$ShowFileName = $false,
+    [switch]$ShowFileName = $false,
 
     [Parameter(HelpMessage = "显示文件名时的字体大小。默认 20。")]
     [int]$FontSize = 20,
