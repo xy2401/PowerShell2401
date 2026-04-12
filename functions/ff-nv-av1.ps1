@@ -113,7 +113,7 @@ function Process-NvDirectory {
                 "encode" {
                     Write-LogMessage -message "encode $targetFile" 
                     if (Test-Path -LiteralPath $targetFile) { Remove-Item -LiteralPath $targetFile }
-                    Convert-MediaToNv -inputFile $sourceFile -outputFile $targetFile
+                    Convert-MediaToNv -inputFile $sourceFile -outputFile $targetFile -inWidth $mediaInfo.Width -inHeight $mediaInfo.Height
                     $action = "return"
                     if ((Get-Item -LiteralPath $targetFile).Length -eq 0) {
                         $action = "trunc"
@@ -122,7 +122,7 @@ function Process-NvDirectory {
                 "trunc" {
                     Write-LogMessage -message "encode trunc $targetFile" 
                     if (Test-Path -LiteralPath $targetFile) { Remove-Item -LiteralPath $targetFile }
-                    Convert-MediaToNv -inputFile $sourceFile -outputFile $targetFile -trunc 1 
+                    Convert-MediaToNv -inputFile $sourceFile -outputFile $targetFile -trunc 1 -inWidth $mediaInfo.Width -inHeight $mediaInfo.Height
                     $action = "return"
                     if ((Get-Item -LiteralPath $targetFile).Length -eq 0) {
                         $action = "hardLink"
@@ -143,6 +143,8 @@ function Convert-MediaToNv {
     param (
         [string]$inputFile,
         [string]$outputFile,
+        [int]$inWidth = 0,
+        [int]$inHeight = 0,
         [string]$preset = "p4",
         [int]$cq = 32,
         [int]$trunc = 0
@@ -166,9 +168,25 @@ function Convert-MediaToNv {
         $ffmpegParams += "-report"
     }
    
+    $vfFilters = @()
+    $maxRes = $global:GlobalConfig.nvenc.max_resolution
+    if ($null -ne $maxRes -and $maxRes -gt 0) {
+        if ($inWidth -gt $maxRes -or $inHeight -gt $maxRes) {
+            Write-LogMessage -message "Origin resolution ${inWidth}x${inHeight} exceeds NVENC limit $maxRes, scaling down to fit." -Level Warning
+            $vfFilters += "scale=${maxRes}:${maxRes}:force_original_aspect_ratio=decrease"
+        } elseif ($inWidth -le 0 -or $inHeight -le 0) {
+            # fallback safety auto scale
+            $vfFilters += "scale=${maxRes}:${maxRes}:force_original_aspect_ratio=decrease"
+        }
+    }
+
     if (0 -ne $trunc ) {
+        $vfFilters += "crop=trunc(in_w/2)*2:trunc(in_h/2)*2:0:out_h"
+    }
+
+    if ($vfFilters.Count -gt 0) {
         $ffmpegParams += "-filter:v"
-        $ffmpegParams += "crop=trunc(in_w/2)*2:trunc(in_h/2)*2:0:out_h"
+        $ffmpegParams += ($vfFilters -join ",")
     }
          
     $exe = "ffmpeg" 

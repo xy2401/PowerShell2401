@@ -16,6 +16,9 @@
     "TargetDirName": null,
     "ProjectRoot": null
   },
+  "nvenc": {
+    "max_resolution": 8192
+  },
   "extensions": {
     "image": [
       "3ds",
