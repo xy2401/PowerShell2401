@@ -84,9 +84,11 @@ foreach ($dir in $targetDirs) {
 
             $destPath = Join-Path -Path $parentDir -ChildPath $targetSubDir.Name
             
+            $addedMoveSuffix = $false
             # 处理命名冲突
             if (Test-Path -LiteralPath $destPath) {
                 $destPath += ".move"
+                $addedMoveSuffix = $true
                 Write-LogMessage "  -> Conflict detected, renaming to: $($targetSubDir.Name).move" -Level Info
             }
 
@@ -96,6 +98,15 @@ foreach ($dir in $targetDirs) {
                 # 删除现在的空父目录
                 Remove-Item -LiteralPath $dirPath -Force -ErrorAction Stop
                 Write-LogMessage "  -> Subfolder moved and redundant parent removed." -Level Success
+
+                # 检查是否可以去掉 .move 后缀
+                if ($addedMoveSuffix) {
+                    $originalDestPath = $destPath.Substring(0, $destPath.Length - 5)
+                    if (-not (Test-Path -LiteralPath $originalDestPath)) {
+                        Rename-Item -LiteralPath $destPath -NewName (Split-Path $originalDestPath -Leaf) -ErrorAction Stop
+                        Write-LogMessage "  -> Removed .move suffix as target name became available." -Level Success
+                    }
+                }
             }
             catch {
                 Write-LogMessage "  -> [Error] Failed to move/cleanup: $_" -Level Error
