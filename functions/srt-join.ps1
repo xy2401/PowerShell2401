@@ -1,8 +1,6 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [Parameter(Position = 0)]
-    [string]$Path = ".",
-    
+ 
     [Parameter(Mandatory = $true)]
     [string[]]$Lang,
     
@@ -23,10 +21,9 @@ param(
     [double]$MaxYieldRatio = 0.10
 )
 
-$runtime = $global:GlobalConfig.runtime
-if ($null -ne $runtime -and $Path -eq ".") {
-    $Path = $runtime.WorkDir
-}
+$runtime = $global:GlobalConfig.runtime 
+$Path = $runtime.WorkDir
+ 
 
 $targetDir = $Path
 if (Test-Path -LiteralPath $Path -PathType Leaf) {
