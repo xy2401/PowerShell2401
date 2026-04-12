@@ -50,9 +50,6 @@ param (
     [Parameter(HelpMessage = "显示文件名时的字体大小。默认 20。")]
     [int]$FontSize = 20,
 
-    [Parameter(HelpMessage = "显示文件名时使用的字体路径。若不指定则自动寻找系统内置的中文字体 (如微软雅黑)。")]
-    [string]$FontFile = "",
-
     [Parameter(HelpMessage = "文件名排序方式。'Smart'（数字顺序，默认）、'Name'（字母顺序）或 'VerticalRatio'（按最终占据高度的比例降序，让扁平的横图作为填缝剂填在最后）。")]
     [ValidateSet("Smart", "Name", "VerticalRatio")]
     [string]$Sort = "Smart",
@@ -326,27 +323,20 @@ foreach ($TargetFolderItem in $TargetFolders) {
     # --------- 【字体检测】 ---------
     [string]$ResolvedFontFile = ""
     if ($ShowFileName) {
-        $SourceFontPath = ""
-        if (-not [string]::IsNullOrWhiteSpace($FontFile)) {
-            $SourceFontPath = $FontFile
+        if (-not [string]::IsNullOrWhiteSpace($global:GlobalConfig.fonts)) {
+            $GlobalFontPath = $global:GlobalConfig.fonts
+            if (-not [System.IO.Path]::IsPathRooted($GlobalFontPath)) {
+                $GlobalFontPath = Join-Path $runtime.ProjectRoot $GlobalFontPath
+            }
+            
+            if (Test-Path -LiteralPath $GlobalFontPath) {
+                $ResolvedFontFile = $GlobalFontPath -replace "\\", "/" -replace ":", "\:"
+                Write-LogMessage "使用配置文件指定的字体: $GlobalFontPath" -Level Info
+            } else {
+                Write-LogMessage "指定的字体文件未找到: $GlobalFontPath" -Level Warning
+            }
         } else {
-            $DefaultFonts = @("msyh.ttc", "msyh.ttf", "simhei.ttf", "arial.ttf", "consola.ttf")
-            foreach ($FontName in $DefaultFonts) {
-                $TestPath = Join-Path $env:windir "Fonts\$FontName"
-                if (Test-Path -LiteralPath $TestPath) {
-                    $SourceFontPath = $TestPath
-                    Write-LogMessage "自动匹配系统字体用于水印: $TestPath" -Level Info
-                    break
-                }
-            }
-            if ([string]::IsNullOrWhiteSpace($SourceFontPath)) {
-                Write-LogMessage "未找到常用系统字体，若遇到 FFmpeg 渲染报错请使用 -FontFile 指定。" -Level Warning
-            }
-        }
-
-        if (-not [string]::IsNullOrWhiteSpace($SourceFontPath)) {
-            # 处理路径转义：斜杠方向和冒号转义是 ffmpeg 识别绝对路径的关键
-            $ResolvedFontFile = $SourceFontPath -replace "\\", "/" -replace ":", "\:"
+            Write-LogMessage "config.json 中未配置 fonts，可能导致水印无法正常渲染。" -Level Warning
         }
     }
     # --------------------------------
