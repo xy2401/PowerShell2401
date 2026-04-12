@@ -25,25 +25,55 @@ catch {
     Write-LogMessage -Message "无法执行 $exe，请检查配置。" -Level Error; return
 }
 
-# 3. 构造极小任务探测 SVT-AV1 版本
-Write-LogMessage -Message "正在探测 SVT-AV1 编码器内部版本 (模拟编码中)..." -Level Info
+# 2.5 列出所有编码器
+Write-LogMessage -Message "正在获取所有支持的 FFmpeg 编码器列表..." -Level Info
+try {
+    $encoders = & $exe -hide_banner -encoders
+    
+    $encodersLogPath = "ff-version.encoders.log"
+    if ($null -ne $global:GlobalConfig.runtime.LogFilePath) {
+        $encodersLogPath = $global:GlobalConfig.runtime.LogFilePath -replace '\.[^.]+$', '.encoders.log'
+    }
+    $encoders | Out-File -LiteralPath $encodersLogPath -Encoding utf8
+    
+    Write-LogMessage -Message "详细编码器列表已保存至: $encodersLogPath" -Level Info
+}
+catch {
+    Write-LogMessage -Message "获取编码器列表失败: $_" -Level Error
+}
 
+# 3. 构造极小任务探测 SVT-AV1 版本
 $tempDir = [System.IO.Path]::GetTempPath()
 $tempFileName = [System.Guid]::NewGuid().ToString() + ".avif"
 $tempOutput = Join-Path $tempDir $tempFileName
 try {
     # --- 探测 SVT-AV1 ---
     Write-LogMessage -Message "正在探测 SVT-AV1 编码器内部版本 (模拟编码中)..." -Level Info
-    $svtProbe = & $exe -hide_banner -f lavfi -i "color=c=black:s=1x1:d=1" -c:v libsvtav1 -preset 10 -frames:v 1 -f avif -y $tempOutput 2>&1
-    $svtVersionLine = $svtProbe | Where-Object { $_ -match "SVT-AV1|Encoder Version|SVT" } | ForEach-Object { $_.ToString().Trim() } | Select-Object -Unique | Select-Object -First 2
+    $svtProbe = & $exe -hide_banner -f lavfi -i "color=c=black:s=256x256:d=1" -c:v libsvtav1 -preset 10 -frames:v 1 -f avif -y $tempOutput 2>&1
+    
+    $svtLogPath = "ff-version.svt.log"
+    if ($null -ne $global:GlobalConfig.runtime.LogFilePath) {
+        $svtLogPath = $global:GlobalConfig.runtime.LogFilePath -replace '\.[^.]+$', '.svt.log'
+    }
+    $svtProbe | Out-File -LiteralPath $svtLogPath -Encoding utf8
+    Write-LogMessage -Message "详细日志已保存至: $svtLogPath" -Level Info
+    
+    $svtVersionLine = $svtProbe | Where-Object { $_ -match "SVT \[version\]|SVT-AV1 Encoder Lib" } | ForEach-Object { $_.ToString().Trim() } | Select-Object -Unique | Select-Object -First 1
     if ($svtVersionLine) {
-        foreach ($line in $svtVersionLine) { Write-LogMessage -Message "SVT-AV1: $line" -Level Success }
+        Write-LogMessage -Message "SVT-AV1: $svtVersionLine" -Level Success
     }
 
     # --- 探测 NVENC ---
     Write-LogMessage -Message "正在探测 NVIDIA NVENC 编码器信息 (模拟编码中)..." -Level Info
     $nvOutput = Join-Path $tempDir ($tempFileName + ".nv.mp4")
-    $nvProbe = & $exe -hide_banner -f lavfi -i "color=c=black:s=1x1:d=1" -c:v av1_nvenc -frames:v 1 -f mp4 -y $nvOutput 2>&1
+    $nvProbe = & $exe -hide_banner -f lavfi -i "color=c=black:s=256x256:d=1" -c:v av1_nvenc -frames:v 1 -f mp4 -y $nvOutput 2>&1
+    
+    $nvLogPath = "ff-version.nv.log"
+    if ($null -ne $global:GlobalConfig.runtime.LogFilePath) {
+        $nvLogPath = $global:GlobalConfig.runtime.LogFilePath -replace '\.[^.]+$', '.nv.log'
+    }
+    $nvProbe | Out-File -LiteralPath $nvLogPath -Encoding utf8
+    Write-LogMessage -Message "详细日志已保存至: $nvLogPath" -Level Info
     
     # NVENC 通常会输出驱动版本 (Driver version) 或初始化信息
     $nvInfo = $nvProbe | Where-Object { $_ -match "NVENC|driver|Nvidia" } | ForEach-Object { $_.ToString().Trim() } | Select-Object -Unique | Select-Object -First 3
