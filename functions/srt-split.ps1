@@ -6,6 +6,12 @@ $Path = $runtime.WorkDir
 function Start-SrtSplitTask {
     param([string]$targetPath)
     
+    # 强制设置输出编码为 UTF-8 以保证与 ffprobe 交互正常
+    $oldOutputEncoding = $OutputEncoding
+    $oldConsoleEncoding = [Console]::OutputEncoding
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    
     # 解析路径是文件还是文件夹
     $items = @()
     if (Test-Path -LiteralPath $targetPath) {
@@ -35,13 +41,31 @@ function Start-SrtSplitTask {
         Write-LogMessage "正在处理视频: $($file.Name)" -Level Info
         
         # 使用 ffprobe 获取字幕流信息
-        $probeJson = ffprobe -v quiet -print_format json -show_streams -select_streams s "$videoPath"
+        # 优化项：指定 show_entries 仅获取需要的 index, codec_name 和 language 标签，避免巨大的 title 导致解析失败
+        $ffprobeArgs = @(
+            "-v", "error",
+            "-print_format", "json",
+            "-show_streams",
+            "-select_streams", "s",
+            "-show_entries", "stream=index,codec_name:stream_tags=language",
+            $videoPath
+        )
+        
+        $probeJson = & ffprobe @ffprobeArgs | Out-String
+        
         if ([string]::IsNullOrWhiteSpace($probeJson)) {
-            Write-LogMessage "  -> 未发现任何字幕流" -Level Warning
+            Write-LogMessage "  -> 未发现任何字幕流 (Probe 输出为空)" -Level Warning
             continue
         }
         
-        $probeOutput = $probeJson | ConvertFrom-Json
+        $probeOutput = $null
+        try {
+            $probeOutput = $probeJson | ConvertFrom-Json -ErrorAction Stop
+        } catch {
+            Write-LogMessage "  -> 字幕流信息解析失败: $($_.Exception.Message)" -Level Error
+            Write-LogMessage "     [调试] 原始输出长度: $($probeJson.Length) 字符" -Level Error
+            continue
+        }
         
         if ($null -eq $probeOutput -or $null -eq $probeOutput.streams -or $probeOutput.streams.Count -eq 0) {
             Write-LogMessage "  -> 未发现字幕流" -Level Warning
@@ -86,6 +110,9 @@ function Start-SrtSplitTask {
             $counter++
         }
     }
+    # 恢复编码设置
+    $OutputEncoding = $oldOutputEncoding
+    [Console]::OutputEncoding = $oldConsoleEncoding
 }
 
 Start-SrtSplitTask -targetPath $Path
