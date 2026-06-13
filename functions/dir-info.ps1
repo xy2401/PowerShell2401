@@ -45,7 +45,6 @@ if ($Csv) {
 
 # 结果收集器（用于 CSV）
 $allResults = [System.Collections.Generic.List[PSObject]]::new()
-$globalExtStats = @{}
 
 # 1. 获取目标文件夹列表
 Write-LogMessage "Scanning directories (Depth: $Depth, Exclude Hidden Folders)..." -Level Info
@@ -57,6 +56,15 @@ Where-Object { $_.Name -notlike ".*" -and -not ($_.Attributes -match "Hidden") }
 # 2. 从配置中获取动态类别
 $categories = $global:GlobalConfig.extensions.PSObject.Properties.Name
 Write-LogMessage "Registered categories: $($categories -join ', ')" -Level Info
+
+$extToCategory = @{}
+$extConfig = $global:GlobalConfig.extensions.PSObject.Properties
+foreach ($catProp in $extConfig) {
+    $catName = $catProp.Name
+    foreach ($e in $catProp.Value) {
+        $extToCategory[$e.ToLower()] = $catName
+    }
+}
 
 foreach ($dir in $targetDirs) {
     $dirPath = $dir.FullName
@@ -78,7 +86,7 @@ foreach ($dir in $targetDirs) {
     }
 
     Write-LogMessage -NoPrefix " "
-    Write-LogMessage "`n--- Analyzing: $displayPath ---" -Level Info 
+    Write-LogMessage "--- Analyzing: $displayPath ---" -ForegroundColor Magenta
     Write-LogMessage -NoPrefix ("{0,-15} : {1}" -f "Directory Name", $dir.Name) -ForegroundColor Cyan
     Write-LogMessage -NoPrefix ("{0,-15} : {1}" -f "Relative Depth", $currentDepth) -ForegroundColor Cyan
     
@@ -93,7 +101,14 @@ foreach ($dir in $targetDirs) {
     # 获取该目录下的直接子文件数量 (不包含子文件夹内文件)
     $directFiles = Get-ChildItem -LiteralPath $dirPath -File | 
     Where-Object { $_.Name -notlike ".*" -and -not ($_.Attributes -match "Hidden") }
-    $subFilesTotal = if ($null -eq $directFiles) { 0 } else { $directFiles.Count }
+    
+    $subFilesTotal = 0
+    $subFilesSize = 0
+    if ($null -ne $directFiles) {
+        $subFilesTotal = @($directFiles).Count
+        $subFilesSize = (@($directFiles) | Measure-Object -Property Length -Sum).Sum
+        if ($null -eq $subFilesSize) { $subFilesSize = 0 }
+    }
 
     # 递归获取目录下所有文件，排除隐藏路径
     $allFiles = Get-ChildItem -LiteralPath $dirPath -File -Recurse | 
@@ -119,6 +134,7 @@ foreach ($dir in $targetDirs) {
     foreach ($cat in $categories) {
         $stats[$cat] = @{ Count = 0; Size = 0 }
     }
+    $dirExtStats = @{}
 
     # 3. 遍历文件进行分类统计
     if ($null -ne $allFiles) {
@@ -145,10 +161,11 @@ foreach ($dir in $targetDirs) {
             if ($ExtSummary) {
                 # 统一转为小写以便统计
                 $lowerExt = $ext.ToLower()
-                if (-not $globalExtStats.ContainsKey($lowerExt)) {
-                    $globalExtStats[$lowerExt] = 0
+                if (-not $dirExtStats.ContainsKey($lowerExt)) {
+                    $dirExtStats[$lowerExt] = @{ Count = 0; Size = 0 }
                 }
-                $globalExtStats[$lowerExt]++
+                $dirExtStats[$lowerExt].Count++
+                $dirExtStats[$lowerExt].Size += $size
             }
 
             # C. 使用 Get-FileType 进行分类
@@ -170,14 +187,20 @@ foreach ($dir in $targetDirs) {
 
     # 打印总计
     Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f "Folders", $folderCount, "-") -ForegroundColor White
-    Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f "Direct Files", $subFilesTotal, "-") -ForegroundColor White
-    Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f "Files TOTAL", $stats.TotalCount, (Format-SizeText $stats.TotalSize)) -ForegroundColor White
+    Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f "Direct Files", $subFilesTotal, (Format-SizeText $subFilesSize)) -ForegroundColor Cyan
+    Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f "Files", $stats.TotalCount, (Format-SizeText $stats.TotalSize)) -ForegroundColor Cyan
 
     # 打印特殊分类
     $specialCats = @("Hidden", "NoExtension", "Unknown")
     foreach ($sc in $specialCats) {
         if ($stats[$sc].Count -gt 0) {
-            Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f $sc, $stats[$sc].Count, (Format-SizeText $stats[$sc].Size))
+            $catColor = switch ($sc) {
+                "Unknown" { "Yellow" }
+                "Hidden" { "DarkGray" }
+                "NoExtension" { "DarkGray" }
+                default { "White" }
+            }
+            Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f $sc, $stats[$sc].Count, (Format-SizeText $stats[$sc].Size)) -ForegroundColor $catColor
         }
     }
 
@@ -185,6 +208,37 @@ foreach ($dir in $targetDirs) {
     foreach ($cat in $categories) {
         if ($stats[$cat].Count -gt 0) {
             Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f $cat, $stats[$cat].Count, (Format-SizeText $stats[$cat].Size)) -ForegroundColor Green
+        }
+    }
+
+    # 打印当前目录的扩展名统计
+    if ($ExtSummary -and $dirExtStats.Count -gt 0) {
+        Write-LogMessage -NoPrefix "`n--- Extension Summary ---" -ForegroundColor Yellow
+        Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f "Extension", "Count", "Size") -ForegroundColor Gray
+        Write-LogMessage -NoPrefix ("-" * 45) -ForegroundColor Gray
+        
+        $groupedStats = @{}
+        foreach ($key in $dirExtStats.Keys) {
+            $cat = $extToCategory[$key]
+            if ([string]::IsNullOrWhiteSpace($cat)) {
+                $cat = "Unknown"
+            }
+            if (-not $groupedStats.ContainsKey($cat)) {
+                $groupedStats[$cat] = @{}
+            }
+            $groupedStats[$cat][$key] = $dirExtStats[$key]
+        }
+
+        $catOrder = $groupedStats.Keys | Sort-Object
+        foreach ($cat in $catOrder) {
+            $headerColor = if ($cat -eq "Unknown") { "Yellow" } else { "Green" }
+            Write-LogMessage -NoPrefix "[$cat]" -ForegroundColor $headerColor
+            $catExts = $groupedStats[$cat]
+            $sortedExts = $catExts.GetEnumerator() | Sort-Object { $_.Value.Count } -Descending
+            foreach ($kv in $sortedExts) {
+                $extLabel = "  ." + $kv.Key
+                Write-LogMessage -NoPrefix ("{0,-15} | {1,-10} | {2,-15}" -f $extLabel, $kv.Value.Count, (Format-SizeText $kv.Value.Size)) -ForegroundColor Cyan
+            }
         }
     }
 
@@ -275,46 +329,6 @@ if ($Csv -and $allResults.Count -gt 0) {
     Write-LogMessage "Export Successful!" -Level Success
 }
 
-# 输出全局扩展名统计汇总
-if ($ExtSummary -and $globalExtStats.Count -gt 0) {
-    Write-LogMessage "`n--- Global Extension Summary ---" -Level Info
-    
-    # 根据 config.json 构建后缀名到大类的映射表
-    $extToCategory = @{}
-    $extConfig = $global:GlobalConfig.extensions.PSObject.Properties
-    foreach ($catProp in $extConfig) {
-        $catName = $catProp.Name
-        foreach ($e in $catProp.Value) {
-            $extToCategory[$e.ToLower()] = $catName
-        }
-    }
 
-    # 将统计结果按照大类进行分组
-    $groupedStats = @{}
-    foreach ($key in $globalExtStats.Keys) {
-        $cat = $extToCategory[$key]
-        if ([string]::IsNullOrWhiteSpace($cat)) {
-            $cat = "Unknown"
-        }
-        
-        if (-not $groupedStats.ContainsKey($cat)) {
-            $groupedStats[$cat] = @{}
-        }
-        $groupedStats[$cat][$key] = $globalExtStats[$key]
-    }
 
-    # 分类打印输出
-    $catOrder = $groupedStats.Keys | Sort-Object
-    foreach ($cat in $catOrder) {
-        Write-LogMessage -NoPrefix "[$cat]" -ForegroundColor Green
-        $catExts = $groupedStats[$cat]
-        
-        # 将该大类下的扩展名按数量降序排列
-        $sortedExts = $catExts.GetEnumerator() | Sort-Object Value -Descending
-        foreach ($kv in $sortedExts) {
-            Write-LogMessage -NoPrefix ("  .{0,-10} : {1}" -f $kv.Key, $kv.Value) -ForegroundColor Cyan
-        }
-    }
-}
-
-Write-LogMessage "`nScan Complete." -Level Success
+Write-LogMessage "Scan Complete." -Level Success
