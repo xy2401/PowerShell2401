@@ -77,7 +77,7 @@ foreach ($dir in $targetDirs) {
         }
     }
 
-    Write-LogMessage -NoPrefix ""
+    Write-LogMessage -NoPrefix " "
     Write-LogMessage "`n--- Analyzing: $displayPath ---" -Level Info 
     Write-LogMessage -NoPrefix ("{0,-15} : {1}" -f "Directory Name", $dir.Name) -ForegroundColor Cyan
     Write-LogMessage -NoPrefix ("{0,-15} : {1}" -f "Relative Depth", $currentDepth) -ForegroundColor Cyan
