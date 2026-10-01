@@ -1,3 +1,34 @@
+<#
+.SYNOPSIS
+    按时间轴合并多语言 SRT 字幕。
+
+.DESCRIPTION
+    查找指定语言后缀的字幕文件，根据时间重合率和容差合并对应字幕段，并生成组合字幕文件。
+
+.PARAMETER Lang
+    要合并的语言标签数组，例如 zh,en。
+
+.PARAMETER Tolerance
+    时间边界匹配容差，单位为秒。
+
+.PARAMETER MaxMergeCount
+    单个合并字幕段允许包含的最大原始段数。
+
+.PARAMETER MatchRatio
+    判定两个时间段直接匹配所需的最小交并比。
+
+.PARAMETER MaxYieldRatio
+    为消除轻微边界重叠允许缩短字幕段的最大比例。
+
+.EXAMPLE
+    # ExampleId: bilingual
+    pw2401 srt-join -Lang zh,en
+
+    合并当前目录中的 sample.zh.srt 和 sample.en.srt。
+
+.NOTES
+    Requires: PowerShell
+#>
 [CmdletBinding(PositionalBinding = $false)]
 param(
  

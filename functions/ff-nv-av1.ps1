@@ -1,3 +1,29 @@
+<#
+.SYNOPSIS
+    使用 NVIDIA NVENC 将图片和视频批量编码为 AV1。
+
+.DESCRIPTION
+    递归处理当前目录：图片输出为 AVIF，视频输出为 MP4，其他文件建立硬链接。
+    支持 fast、pro、ultra 和参数网格测试配置。
+
+.PARAMETER Profile
+    编码配置名称：fast、pro、ultra 或 for。
+
+.PARAMETER preset
+    NVENC 预设，取值通常为 p1 到 p7。
+
+.PARAMETER cq
+    NVENC 恒定质量值，数值越低画质越高。
+
+.EXAMPLE
+    # ExampleId: fast
+    pw2401 ff-nv-av1 fast
+
+    使用快速 NVENC 配置编码当前测试目录中的媒体。
+
+.NOTES
+    Requires: ffmpeg, ffprobe, av1_nvenc
+#>
 param(
     #========================================================
     # 编码预配置模式 (可覆盖全局):

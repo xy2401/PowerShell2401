@@ -30,6 +30,17 @@ if ($args.Count -gt 1) {
 # 1. 环境初始化
 $ProjectFunctions = Join-Path $PSScriptRoot "functions"
 
+# 对外保留简短命令名，实际脚本按 sys-* 前缀集中排列。
+$global:Pw2401CommandAliases = @{
+    "help"                 = "sys-help"
+    "install"              = "sys-install"
+    "docs"                 = "sys-docs"
+    "status"               = "sys-status"
+    "debug-media-types"    = "sys-debug-media-types"
+    "debug-log"            = "sys-debug-log"
+    "debug-CmdletBinding"  = "sys-debug-CmdletBinding"
+}
+
  
     Get-ChildItem -LiteralPath "$PSScriptRoot\lib" -Filter "*.psm1" | ForEach-Object { Import-Module $_.FullName -Force }
 
@@ -49,12 +60,17 @@ Write-LogMessage "RemainingArguments:`n$RemainingArguments" -Level Info
 if ([string]::IsNullOrWhiteSpace($Action)) {
     # 情况 A: 未提供动作参数，默认执行 help
     Write-LogMessage "未提供动作参数，默认执行 help"
-    $Action = "help" 
+    $Action = "sys-help"
+}
+elseif ($global:Pw2401CommandAliases.ContainsKey($Action)) {
+    $resolvedAction = $global:Pw2401CommandAliases[$Action]
+    Write-LogMessage "命令别名: $Action -> $resolvedAction" -Level Info
+    $Action = $resolvedAction
 }
 elseif (-not (Test-Path -LiteralPath (Join-Path $ProjectFunctions "$Action.ps1"))) {
     # 情况 B: 提供了动作但文件不存在，记录警告并重定向到 help
     Write-LogMessage "未识别的命令: $Action" -Level Warning
-    $Action = "help" 
+    $Action = "sys-help"
 }
   
 $TargetFile = Join-Path $ProjectFunctions "$Action.ps1"

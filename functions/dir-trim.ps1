@@ -10,9 +10,6 @@
 .PARAMETER Action
     执行的动作："pad" (补零), "trim" (智能去缀，默认), "rename" (按序重命名 1~n)。
 
-.PARAMETER Path
-    目标目录，默认为当前目录。
-
 .PARAMETER Depth
     处理路径的深度。默认 0 即仅当前目录，1 表示包含所有一级子目录，以此类推。
 
@@ -21,6 +18,15 @@
 
 .PARAMETER Sort
     排序方式（仅用于 rename 动作）："name" (默认), "size" (按大小), "time" (按修改时间)。
+
+.EXAMPLE
+    # ExampleId: pad-numbers
+    pw2401 dir-trim pad -Depth 0
+
+    将当前目录文件名中的数字补齐到统一宽度。
+
+.NOTES
+    Requires: PowerShell
 #>
 
 [CmdletBinding(PositionalBinding = $false)]

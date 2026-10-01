@@ -1,3 +1,29 @@
+<#
+.SYNOPSIS
+    根据目录中的媒体数量和总大小为目录名追加统计标签。
+
+.DESCRIPTION
+    扫描指定深度的目录，统计图片、视频和文件总容量，并将格式化摘要追加到目录名末尾。
+    可以替换旧标签，也可以自定义标签片段。
+
+.PARAMETER Depth
+    要标记的精确目录深度。1 表示当前目录的直接子目录。
+
+.PARAMETER ReplaceLastTag
+    在追加新统计信息前移除目录名末尾已有的方括号标签。
+
+.PARAMETER Format
+    标签片段数组，支持 P、V 和 Size 占位符；值为零的片段会被隐藏。
+
+.EXAMPLE
+    # ExampleId: replace-last-tag
+    pw2401 dir-tag -Depth 1 -ReplaceLastTag
+
+    为当前目录的直接子目录更新媒体统计标签。
+
+.NOTES
+    Requires: PowerShell
+#>
 [CmdletBinding(PositionalBinding = $false)]
 param(
  

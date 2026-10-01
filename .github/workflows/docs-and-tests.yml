@@ -1,0 +1,179 @@
+name: Docs and tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pw2401-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  FFMPEG_FULL_VERSION: '9.0.0'
+  TEST_ARTIFACT_RETENTION_DAYS: '7'
+
+jobs:
+  docs:
+    name: Documentation
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Show PowerShell environment
+        run: |
+          $PSVersionTable | Format-Table -AutoSize
+          "PowerShell: $($PSVersionTable.PSVersion)" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
+      - name: Validate PowerShell syntax
+        run: |
+          $parseErrors = @()
+          $files = Get-ChildItem -Recurse -File -Include *.ps1, *.psm1, *.psd1 |
+            Where-Object { $_.FullName -notmatch '[\\/]target[\\/]' }
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [void][Management.Automation.Language.Parser]::ParseFile(
+              $file.FullName,
+              [ref]$tokens,
+              [ref]$errors
+            )
+            foreach ($errorItem in @($errors)) {
+              $parseErrors += "$($file.FullName):$($errorItem.Extent.StartLineNumber): $($errorItem.Message)"
+            }
+          }
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | ForEach-Object { Write-Error $_ }
+            throw "$($parseErrors.Count) 个 PowerShell 语法错误"
+          }
+          "Validated $($files.Count) PowerShell files." | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
+      - name: Generate documentation
+        run: ./pw2401.ps1 docs
+
+      - name: Verify generated documentation is committed
+        run: |
+          $changes = @(git status --porcelain -- docs)
+          if ($changes.Count -gt 0) {
+            $changes | ForEach-Object { Write-Host $_ }
+            git diff -- docs
+            throw 'Generated documentation differs from the committed files. Run: pw2401 docs'
+          }
+          'Generated documentation is up to date.' | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
+  powershell-tests:
+    name: PowerShell examples
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Run PowerShell example tests
+        run: ./pw2401.ps1 test
+
+      - name: Publish test summary
+        if: always()
+        run: |
+          $report = Get-ChildItem target/pw2401-tests/runs -Recurse -Filter report.json -File -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+          if ($null -ne $report) {
+            $data = Get-Content -LiteralPath $report.FullName -Raw | ConvertFrom-Json
+            "### PowerShell examples" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+            "Pass $($data.Summary.Pass), Fail $($data.Summary.Fail), Skip $($data.Summary.Skip)" |
+              Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          }
+
+      - name: Upload PowerShell test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: powershell-tests-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/pw2401-tests/
+          if-no-files-found: error
+          retention-days: ${{ env.TEST_ARTIFACT_RETENTION_DAYS }}
+
+  external-tests:
+    name: FFmpeg examples
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install FFmpeg full build
+        run: |
+          choco install ffmpeg-full --version $env:FFMPEG_FULL_VERSION --yes --no-progress
+          if ($LASTEXITCODE -notin @(0, 1641, 3010)) {
+            throw "Chocolatey failed with exit code $LASTEXITCODE"
+          }
+          Get-Command ffmpeg, ffprobe | Format-Table Name, Source
+          ffmpeg -version | Select-Object -First 1
+
+      - name: Detect FFmpeg capabilities
+        run: |
+          $encoders = ffmpeg -hide_banner -encoders 2>&1 | Out-String
+          $filters = ffmpeg -hide_banner -filters 2>&1 | Out-String
+          $svt = $encoders -match '\blibsvtav1\b'
+          $vmaf = $filters -match '\blibvmaf\b'
+          $nvencListed = $encoders -match '\bav1_nvenc\b'
+          $nvencRuntime = $false
+          if ($nvencListed) {
+            ffmpeg -hide_banner -loglevel error -f lavfi -i 'color=c=black:size=320x240:rate=1' `
+              -frames:v 1 -c:v av1_nvenc -f null - 2>$null | Out-Null
+            $nvencRuntime = $LASTEXITCODE -eq 0
+          }
+          $global:LASTEXITCODE = 0
+
+          @"
+          ### FFmpeg capabilities
+
+          | Capability | Available |
+          |---|---:|
+          | ffmpeg | true |
+          | ffprobe | true |
+          | libsvtav1 | $svt |
+          | libvmaf | $vmaf |
+          | av1_nvenc listed | $nvencListed |
+          | av1_nvenc runtime | $nvencRuntime |
+
+          Missing encoders, filters, or GPU runtime support are reported as **Skip**, not Fail.
+          "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
+      - name: Run external example tests
+        run: ./pw2401.ps1 test -External
+
+      - name: Publish external test summary
+        if: always()
+        run: |
+          $report = Get-ChildItem target/pw2401-tests/runs -Recurse -Filter report.json -File -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+          if ($null -ne $report) {
+            $data = Get-Content -LiteralPath $report.FullName -Raw | ConvertFrom-Json
+            "### External examples" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+            "Pass $($data.Summary.Pass), Fail $($data.Summary.Fail), Skip $($data.Summary.Skip)" |
+              Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+            foreach ($result in $data.Results) {
+              if ($result.Status -eq 'Skip') {
+                "- Skip ``$($result.Command)``: $($result.Message)" |
+                  Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+              }
+            }
+          }
+
+      - name: Upload external test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: external-tests-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/pw2401-tests/
+          if-no-files-found: error
+          retention-days: ${{ env.TEST_ARTIFACT_RETENTION_DAYS }}

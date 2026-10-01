@@ -1,5 +1,7 @@
 # PowerShell 2401 (pw2401) 实用工具箱
 
+[![Docs and tests](https://github.com/xy2401/PowerShell2401/actions/workflows/docs-and-tests.yml/badge.svg)](https://github.com/xy2401/PowerShell2401/actions/workflows/docs-and-tests.yml)
+
 这是一个基于 PowerShell 的多功能、高性能脚手架与工具库。旨在通过统一、优雅的入口命令简化视频图像处理、文件收纳与分类管理。底层集成 FFmpeg 等行业标准工具，并使用高度优化的 PowerShell 逻辑提供顺畅的使用体验。
 
 ## 🚀 快速开始
@@ -21,6 +23,26 @@
 pw2401 <功能名称> [功能相关参数...]
 ```
 *如果不带参数直接执行 `pw2401`，将输出可用命令的快速列表。*
+
+### 3. 命令文档与示例测试
+
+完整命令文档由各脚本开头的 PowerShell 注释帮助自动生成，入口见 [docs/README.md](docs/README.md)。
+
+```powershell
+pw2401 docs           # 重新生成命令文档
+pw2401 test           # 执行纯 PowerShell 示例
+pw2401 test -External # 同时执行 FFmpeg 等外部依赖示例
+```
+
+测试数据和报告位于当前目录的 `target/pw2401-tests/`。所有已执行 case 无论通过还是失败都会保留，Skip 不创建空目录，原始 `tests/magika_basic` 素材不会被修改。
+
+`pw2401 test` 同时运行 `tests/TestRegression.ps1` 中的回归测试，覆盖复制失败、文件占用、EXIF 方向 2–8、分类一致性和未知媒体时长。文件安全测试分别验证默认 `Continue` 与严格 `Stop` 错误策略；结果保存在 `target/pw2401-tests/regressions/`。示例测试保持严格错误策略，PSD1 的 `Images` 与 `Media` 断言可检查实际宽高、EXIF 方向、媒体类型及最小时长。
+
+每个 case 的标准输出保存在 `stdout.txt`；PowerShell 序列化信息流使用原生的 `streams.clixml` 后缀，非 CLIXML 原始流保存为 `streams.txt`。这些流文件不等同于测试错误，测试结论以报告中的状态和断言为准。
+
+每个可测试命令由同目录的同名文件共同维护：`functions/<命令>.ps1` 保存实现、注释帮助和带稳定 `ExampleId` 的真实示例，`functions/<命令>.psd1` 声明 case 输入与预期输出。PSD1 由 PowerShell 原生读取，不包含可执行命令；测试引擎只提供复制文件、创建目录、创建文本文件和结果断言等通用能力。外部媒体测试使用仓库中的微型 `tests/fixtures/`，不会在配置文件里硬编码 FFmpeg 命令。
+
+GitHub Actions 在 Windows hosted runner 上执行文档一致性、纯 PowerShell 示例和 FFmpeg 外部示例。外部 job 安装 `ffmpeg-full`；缺少 `libsvtav1`、`libvmaf`、`av1_nvenc` 或 NVIDIA 运行能力时，对应用例记为 Skip，不会使工作流失败。每次测试报告作为 artifact 保留 7 天。
 
 ---
 
@@ -85,10 +107,11 @@ pw2401 <功能名称> [功能相关参数...]
 *   **`dir-trim` / `dir-void`**：深度强迫症级空目录与临时碎片清理大师。
 
 ### ⚙️ 后台服务与生态系统工具
-*   **`install`**：核心环境变量注册模块（包含路径保护功能防清零）。
-*   **`help`**：显示帮助。
+*   **`sys-install`**（别名 `install`）：核心环境变量注册模块（包含路径保护功能防清零）。
+*   **`sys-help`**（别名 `help`）：显示帮助及全部兼容别名。
+*   **`sys-docs`**（别名 `docs`）：重新生成注释帮助文档。
 *   **`SystemInfo`**：轻量级探测当前处理器、显卡型号与内存池资源，适配排障。
-*   **`status`**：检查程序及依赖组件可用情况。
+*   **`sys-status`**（别名 `status`）：检查程序及依赖组件可用情况。
 
 ---
 
@@ -96,7 +119,7 @@ pw2401 <功能名称> [功能相关参数...]
 
 *   **获得专属命令帮助**：大部分主要命令配套了独立解释手册，运行 `pw2401 <命令>` 未带特定必选参数或者查看 `functions/` 目录下的 `.help.txt` 均可了解更多隐性高级参数玩法。
 *   **模块定制 (`config.json`)**：项目支持配置 `WorkDir` 或后端挂载的固定依赖套件路径（例如全局注册你的系统默认 FFmpeg）。
-*   **日志系统 (`debug-log.ps1`)**：脚本采用分级与带有终端颜色的回显拦截体系 `Log-Message`，并会在目录留下详细运行轨迹如 `dir-group_2026xxxx.log`，查证方便。
+*   **日志系统 (`sys-debug-log.ps1`)**：脚本采用分级与带有终端颜色的回显拦截体系 `Log-Message`，并会在目录留下详细运行轨迹如 `dir-group_2026xxxx.log`，查证方便。
 
 ## 📄 许可说明
 本项目汇聚了日常繁冗数据整理工作流程的最佳实践，以供个人效率提升。在使用 FFmpeg 等第三方工具时，请严格遵守其相应的开源协议。

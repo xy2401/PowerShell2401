@@ -1,3 +1,29 @@
+<#
+.SYNOPSIS
+    使用 SVT-AV1 批量编码当前目录中的图片和视频。
+
+.DESCRIPTION
+    递归处理当前目录：图片输出为 AVIF，视频输出为 MP4，其他文件建立硬链接。
+    支持 fast、pro、ultra 和参数网格测试配置。
+
+.PARAMETER Profile
+    编码配置名称：fast、pro、ultra 或 for。
+
+.PARAMETER preset
+    SVT-AV1 编码速度预设，数值越小通常压缩效率越高、速度越慢。
+
+.PARAMETER crf
+    恒定质量值，数值越低画质越高。
+
+.EXAMPLE
+    # ExampleId: fast
+    pw2401 ff-svt fast
+
+    使用快速 SVT-AV1 配置编码当前测试目录中的媒体。
+
+.NOTES
+    Requires: ffmpeg, ffprobe, libsvtav1
+#>
  
 param(
     #========================================================

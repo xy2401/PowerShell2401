@@ -1,3 +1,22 @@
+<#
+.SYNOPSIS
+    为目录中的媒体文件导出 ffprobe JSON 信息。
+
+.DESCRIPTION
+    递归扫描当前目录，将图片和视频的流及容器信息写入同级 .info 目录；其他文件使用硬链接保留目录镜像。
+
+.PARAMETER RemainingArguments
+    保留的附加参数，目前不参与处理。
+
+.EXAMPLE
+    # ExampleId: inspect-media
+    pw2401 ff-info
+
+    导出当前目录所有媒体文件的信息。
+
+.NOTES
+    Requires: ffmpeg, ffprobe
+#>
 [CmdletBinding(PositionalBinding = $false)]
 param(
     # 预留参数扩展

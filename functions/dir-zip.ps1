@@ -1,3 +1,28 @@
+<#
+.SYNOPSIS
+    将指定深度的目录分别压缩为 ZIP 或 CBZ 文件。
+
+.DESCRIPTION
+    选择精确深度的目录，为每个目录创建独立压缩包，并在当前目录同级的目标目录中保持相对结构。
+
+.PARAMETER Depth
+    要压缩的精确目录深度。1 表示当前目录的直接子目录。
+
+.PARAMETER IncludeBaseFolder
+    在压缩包内保留被压缩目录本身作为顶级目录。
+
+.PARAMETER Extension
+    输出压缩包扩展名，例如 .zip 或 .cbz。
+
+.EXAMPLE
+    # ExampleId: zip-depth
+    pw2401 dir-zip -Depth 1 -Extension .zip
+
+    将当前目录的直接子目录分别压缩为 ZIP 文件。
+
+.NOTES
+    Requires: PowerShell
+#>
 [CmdletBinding(PositionalBinding = $false)]
 param(
  

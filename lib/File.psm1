@@ -1,12 +1,33 @@
 <#
 .SYNOPSIS
-    根据文件名返回文件媒体类型 (基于全局配置 $global:GlobalConfig)
+    建立并缓存全局配置中的扩展名到媒体类别索引。
 
 .DESCRIPTION
-    动态遍历全局配置 $global:GlobalConfig.extensions 中的各类媒体后缀数组，
-    匹配传入文件名的后缀并返回对应的类型名称（如 "image", "video", "audio", "text", "font" 等）。
-    如果均未匹配或无后缀，则返回 "unknown"。
+    缓存全局配置 $global:GlobalConfig.extensions 的扩展名索引，重复扩展名采用首个类别。
+    配置对象替换后自动重建。原地修改 extensions 时使用 Refresh 显式刷新。
 #>
+function Get-FileTypeMap {
+    param(
+        [object]$Extensions = $global:GlobalConfig.extensions,
+        [switch]$Refresh
+    )
+
+    if ($Refresh -or $null -eq $script:FileTypeMap -or
+        -not [object]::ReferenceEquals($script:IndexedExtensions, $Extensions)) {
+        $script:FileTypeMap = @{}
+        foreach ($property in $Extensions.PSObject.Properties) {
+            foreach ($extension in @($property.Value)) {
+                $key = ([string]$extension).TrimStart('.').ToLowerInvariant()
+                if ($key -and -not $script:FileTypeMap.ContainsKey($key)) {
+                    $script:FileTypeMap[$key] = $property.Name
+                }
+            }
+        }
+        $script:IndexedExtensions = $Extensions
+    }
+    return $script:FileTypeMap
+}
+
 function Get-FileType {
     param (
         [Parameter(Mandatory=$true)]
@@ -14,27 +35,30 @@ function Get-FileType {
     )
 
     # 提取拓展名，去掉开头的点，并统一转为小写以增强匹配健壮性
-    $ext = [System.IO.Path]::GetExtension($FileName).TrimStart('.').ToLower()
+    $ext = [System.IO.Path]::GetExtension($FileName).TrimStart('.').ToLowerInvariant()
     
     if ([string]::IsNullOrWhiteSpace($ext)) {
         return "unknown"
     }
 
-    # 从外部全局配置对象中安全获取拓展名映射
-    $extensions = $global:GlobalConfig.extensions
-    if ($null -eq $extensions) {
-        return "unknown"
-    }
+    $map = Get-FileTypeMap
+    if ($map.ContainsKey($ext)) { return $map[$ext] }
+    return 'unknown'
+}
 
-    # 动态遍历配置中的所有媒体类别 (image, video, audio, text, font 等)
-    foreach ($prop in $extensions.PSObject.Properties) {
-        # 如果该属性的值是数组，且包含当前后缀，则返回该属性名作为类型
-        if ($prop.Value -is [array] -and $prop.Value -contains $ext) {
-            return $prop.Name
-        }
-    }
+# 同目录暂存文件验证成功后再发布；替换失败时保留原目标。
+function Complete-FileReplacement {
+    param(
+        [Parameter(Mandatory = $true)][string]$TemporaryPath,
+        [Parameter(Mandatory = $true)][string]$Destination
+    )
 
-    return "unknown"
+    if ([IO.File]::Exists($Destination)) {
+        [IO.File]::Replace($TemporaryPath, $Destination, [NullString]::Value)
+    }
+    else {
+        [IO.File]::Move($TemporaryPath, $Destination)
+    }
 }
 
 <#
@@ -70,6 +94,7 @@ function Get-ImageTrueDimensions {
         Exif   = "Normal"
     }
 
+    $img = $null
     try {
         Add-Type -AssemblyName System.Drawing
         $img = [System.Drawing.Image]::FromFile($FilePath)
@@ -85,12 +110,14 @@ function Get-ImageTrueDimensions {
         } else {
             $Result.Exif = "NoEXIF"
         }
-        $img.Dispose()
     } catch {
         $Result.Exif = "Error"
+    }
+    finally {
+        if ($null -ne $img) { $img.Dispose() }
     }
 
     return $Result
 }
 
-Export-ModuleMember -Function Get-FileType, Format-SizeText, Get-ImageTrueDimensions
+Export-ModuleMember -Function Get-FileTypeMap, Get-FileType, Complete-FileReplacement, Format-SizeText, Get-ImageTrueDimensions

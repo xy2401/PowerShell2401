@@ -5,6 +5,15 @@
 .DESCRIPTION
     该脚本会获取当前目录信息，并创建一个以 '.hardlink' 为后缀的目标目录。
     它会保持原有的目录层级结构，并将所有文件通过 PowerShell 原生的 HardLink 方式镜像到目标位置。
+
+.EXAMPLE
+    # ExampleId: mirror-links
+    pw2401 hard-link
+
+    在当前目录同级创建 .hardlink 镜像。源目录和目标目录必须位于同一文件系统。
+
+.NOTES
+    Requires: PowerShell
 #>
 param()
 

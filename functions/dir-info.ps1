@@ -10,6 +10,7 @@
     3. 无后缀名的文件。
     4. 不在 config.json 定义中的未知后缀名文件。
     统计时会排除所有隐藏文件夹 (如 .git, .vscode 等)。
+    每个选中目录只遍历一次；扩展名重复时按 config.json 中首个类别归类。
 
 .PARAMETER Depth
     扫描深度。0 表示仅统计当前目录，1 表示包含一级子目录，以此类推。默认值为 0。
@@ -17,8 +18,17 @@
 .PARAMETER Csv
     是否导出 CSV 统计结果。启用后将在工作目录的父目录下生成以工作目录命名的 CSV 文件。
 
+.PARAMETER ExtSummary
+    是否按扩展名进一步输出数量和容量汇总。
+
 .EXAMPLE
-    pw2401 dir-info -Depth 1 -Csv
+    # ExampleId: extension-summary
+    pw2401 dir-info -Depth 1 -ExtSummary
+
+    统计一级子目录，并输出各文件扩展名汇总。
+
+.NOTES
+    Requires: PowerShell
 #>
 
 param(
@@ -57,14 +67,7 @@ Where-Object { $_.Name -notlike ".*" -and -not ($_.Attributes -match "Hidden") }
 $categories = $global:GlobalConfig.extensions.PSObject.Properties.Name
 Write-LogMessage "Registered categories: $($categories -join ', ')" -Level Info
 
-$extToCategory = @{}
-$extConfig = $global:GlobalConfig.extensions.PSObject.Properties
-foreach ($catProp in $extConfig) {
-    $catName = $catProp.Name
-    foreach ($e in $catProp.Value) {
-        $extToCategory[$e.ToLower()] = $catName
-    }
-}
+$extToCategory = Get-FileTypeMap
 
 foreach ($dir in $targetDirs) {
     $dirPath = $dir.FullName
@@ -90,34 +93,34 @@ foreach ($dir in $targetDirs) {
     Write-LogMessage -NoPrefix ("{0,-15} : {1}" -f "Directory Name", $dir.Name) -ForegroundColor Cyan
     Write-LogMessage -NoPrefix ("{0,-15} : {1}" -f "Relative Depth", $currentDepth) -ForegroundColor Cyan
     
-    # 获取目录下所有非隐藏文件夹数量
-    $allDirs = Get-ChildItem -LiteralPath $dirPath -Directory -Recurse | 
-    Where-Object { 
-        $relativePath = $_.FullName.Substring($dirPath.Length)
-        $relativePath -notmatch '\\\.' 
-    }
-    $folderCount = if ($null -eq $allDirs) { 0 } else { $allDirs.Count }
-
-    # 获取该目录下的直接子文件数量 (不包含子文件夹内文件)
-    $directFiles = Get-ChildItem -LiteralPath $dirPath -File | 
-    Where-Object { $_.Name -notlike ".*" -and -not ($_.Attributes -match "Hidden") }
-    
+    # 单次遍历；隐藏目录在入队前排除，避免遍历后再丢弃整棵子树。
+    $folderCount = 0
     $subFilesTotal = 0
-    $subFilesSize = 0
-    if ($null -ne $directFiles) {
-        $subFilesTotal = @($directFiles).Count
-        $subFilesSize = (@($directFiles) | Measure-Object -Property Length -Sum).Sum
-        if ($null -eq $subFilesSize) { $subFilesSize = 0 }
+    $subFilesSize = 0L
+    $allFiles = [Collections.Generic.List[IO.FileInfo]]::new()
+    $pendingDirectories = [Collections.Generic.Queue[string]]::new()
+    $pendingDirectories.Enqueue($dirPath)
+    while ($pendingDirectories.Count -gt 0) {
+        $scanPath = $pendingDirectories.Dequeue()
+        foreach ($item in Get-ChildItem -LiteralPath $scanPath) {
+            if ($item.PSIsContainer) {
+                if ($item.Name.StartsWith('.') -or ($item.Attributes -band [IO.FileAttributes]::Hidden)) { continue }
+                $folderCount++
+                if (-not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+                    $pendingDirectories.Enqueue($item.FullName)
+                }
+            }
+            else {
+                $allFiles.Add($item)
+                if ($scanPath -eq $dirPath -and -not $item.Name.StartsWith('.')) {
+                    $subFilesTotal++
+                    $subFilesSize += $item.Length
+                }
+            }
+        }
     }
 
-    # 递归获取目录下所有文件，排除隐藏路径
-    $allFiles = Get-ChildItem -LiteralPath $dirPath -File -Recurse | 
-    Where-Object { 
-        $relativePath = $_.FullName.Substring($dirPath.Length)
-        $relativePath -notmatch '\\\.' 
-    }
-
-    if ($null -eq $allFiles -and $folderCount -eq 0) {
+    if ($allFiles.Count -eq 0 -and $folderCount -eq 0) {
         Write-LogMessage "No files or folders found in this directory." -Level Warning
         continue
     }
@@ -168,8 +171,8 @@ foreach ($dir in $targetDirs) {
                 $dirExtStats[$lowerExt].Size += $size
             }
 
-            # C. 使用 Get-FileType 进行分类
-            $type = Get-FileType -FileName $file.Name
+            # C. 主表和扩展名汇总共用索引。
+            $type = $extToCategory[$ext] ?? 'unknown'
             if ($type -eq "unknown") {
                 $stats.Unknown.Count++
                 $stats.Unknown.Size += $size

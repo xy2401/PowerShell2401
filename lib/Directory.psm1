@@ -72,9 +72,11 @@ function Get-DirectoryDepth {
 
     $targetDirs = @(Get-Item -LiteralPath $Path)
     for ($i = 0; $i -lt $Depth; $i++) {
-        $nextLevel = @()
+        $nextLevel = [Collections.Generic.List[IO.DirectoryInfo]]::new()
         foreach ($dir in $targetDirs) {
-            $nextLevel += Get-ChildItem -LiteralPath $dir.FullName -Directory
+            foreach ($child in Get-ChildItem -LiteralPath $dir.FullName -Directory) {
+                $nextLevel.Add($child)
+            }
         }
         $targetDirs = $nextLevel
     }

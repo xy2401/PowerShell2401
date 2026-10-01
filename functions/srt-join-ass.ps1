@@ -1,3 +1,25 @@
+<#
+.SYNOPSIS
+    将多语言 SRT 字幕合并为带样式的 ASS 字幕。
+
+.DESCRIPTION
+    读取指定语言标签的 SRT 文件，将不同语言映射到 ASS 样式并输出组合字幕。
+
+.PARAMETER Lang
+    要合并的语言标签数组，例如 zh,en。
+
+.PARAMETER OutputName
+    输出 ASS 文件名；省略时根据输入文件名称自动生成。
+
+.EXAMPLE
+    # ExampleId: bilingual-ass
+    pw2401 srt-join-ass -Lang zh,en -OutputName combined.ass
+
+    将当前目录中的中英文字幕合并为 combined.ass。
+
+.NOTES
+    Requires: PowerShell
+#>
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [Parameter(Mandatory = $true)]

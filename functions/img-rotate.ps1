@@ -6,6 +6,7 @@
     该脚本提供以下两类核心操作：
     1. 同步操作：解决像素数据与 EXIF 旋转标签不一致的问题。
     2. 强制旋转：根据角度或宽高比需求，物理修改图片。
+    修改先保存到同目录临时文件，关闭图像资源后再替换原文件；失败时返回错误。
 
 .PARAMETER SyncPixelsToExif
     【像素同步到标签】：读取 EXIF 旋转标签，物理旋转像素以匹配显示视角，完成后将标签重置。
@@ -25,10 +26,13 @@
     强制转换为纵向：如果图片是横向，则物理旋转 90 度为纵向，并重置 EXIF 标签。
 
 .EXAMPLE
-    pw2401 img-rotate -SyncPixelsToExif
-    pw2401 img-rotate -SyncExifToPixels
+    # ExampleId: rotate-90
     pw2401 img-rotate -Angle 90
-    pw2401 img-rotate -ForceLandscape
+
+    将当前目录中的受支持图片顺时针物理旋转 90 度。
+
+.NOTES
+    Requires: PowerShell
 #>
 
 param(
@@ -65,17 +69,18 @@ if ($files.Count -eq 0) {
 }
 
 Write-LogMessage "准备处理 $($files.Count) 张图片..." -Level Info
+$failedCount = 0
 
 foreach ($file in $files) {
     $filePath = $file.FullName
     $modified = $false
     $img = $null
+    $stream = $null
+    $tempPath = $null
     
     try {
         $stream = [System.IO.File]::OpenRead($filePath)
         $img = [System.Drawing.Image]::FromStream($stream)
-        $stream.Close()
-        $stream.Dispose()
 
         $rotateType = [System.Drawing.RotateFlipType]::RotateNoneFlipNone
 
@@ -97,12 +102,12 @@ foreach ($file in $files) {
                 
                 switch ($orientation) {
                     2 { $rotateType = [System.Drawing.RotateFlipType]::RotateNoneFlipX; $modified = $true }
-                    3 { $rotateType = [System.Drawing.Rotate180FlipNone]; $modified = $true }
-                    4 { $rotateType = [System.Drawing.Rotate180FlipX]; $modified = $true }
-                    5 { $rotateType = [System.Drawing.Rotate270FlipX]; $modified = $true }
-                    6 { $rotateType = [System.Drawing.Rotate90FlipNone]; $modified = $true }
-                    7 { $rotateType = [System.Drawing.Rotate90FlipX]; $modified = $true }
-                    8 { $rotateType = [System.Drawing.Rotate270FlipNone]; $modified = $true }
+                    3 { $rotateType = [System.Drawing.RotateFlipType]::Rotate180FlipNone; $modified = $true }
+                    4 { $rotateType = [System.Drawing.RotateFlipType]::Rotate180FlipX; $modified = $true }
+                    5 { $rotateType = [System.Drawing.RotateFlipType]::Rotate90FlipX; $modified = $true }
+                    6 { $rotateType = [System.Drawing.RotateFlipType]::Rotate90FlipNone; $modified = $true }
+                    7 { $rotateType = [System.Drawing.RotateFlipType]::Rotate270FlipX; $modified = $true }
+                    8 { $rotateType = [System.Drawing.RotateFlipType]::Rotate270FlipNone; $modified = $true }
                 }
 
                 if ($modified) {
@@ -154,22 +159,27 @@ foreach ($file in $files) {
 
         # 保存修改
         if ($modified) {
-            $tempPath = $filePath + ".tmp"
+            $tempPath = Join-Path $file.DirectoryName ('.pw2401-' + [guid]::NewGuid().ToString('N') + '.tmp')
             $img.Save($tempPath, $img.RawFormat)
             $img.Dispose()
             $img = $null
-            
-            Remove-Item -LiteralPath $filePath -Force
-            Move-Item -LiteralPath $tempPath -Destination $filePath -Force
-        } else {
-            $img.Dispose()
-            $img = $null
+            $stream.Dispose()
+            $stream = $null
+            Complete-FileReplacement -TemporaryPath $tempPath -Destination $filePath
         }
 
     } catch {
+        $failedCount++
         Write-LogMessage "处理图片 [$($file.Name)] 时出错: $($_.Exception.Message)" -Level Error
+    }
+    finally {
         if ($null -ne $img) { $img.Dispose() }
+        if ($null -ne $stream) { $stream.Dispose() }
+        if ($tempPath -and [IO.File]::Exists($tempPath)) {
+            Remove-Item -LiteralPath $tempPath -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 
+if ($failedCount -gt 0) { throw "$failedCount 张图片处理失败。" }
 Write-LogMessage "任务完成。" -Level Success

@@ -5,7 +5,8 @@
 .DESCRIPTION
     该脚本会获取当前目录信息，并创建一个以 '.copy' 为后缀的目标目录。
     支持按特定的文件后缀、文本内容、内容正则表达式或文件名正则表达式来筛选需要复制的文件。
-    同时提供了一个拷贝后删除原文件的选项（相当于移动文件）。
+    先复制到目标目录的临时文件，校验大小并完成替换后才允许删除原文件。
+    复制或替换失败时保留源文件和已有目标文件，并以失败状态结束。
 
 .PARAMETER Extension
     指定要复制的文件名后缀数组（例如: html, css, .txt）。默认不区分大小写，且带不带前导点都可以。若未指定或为空，则复制所有后缀类型。
@@ -21,6 +22,15 @@
 
 .PARAMETER NameRegex
     指定要匹配的文件名正则表达式。只有文件名（或其部分）匹配该正则表达式，文件才会被拷贝。
+
+.EXAMPLE
+    # ExampleId: extension-filter
+    pw2401 dir-copy -Extension txt
+
+    将当前目录中的文本文件复制到同级的 .copy 目录，并保持原目录结构。
+
+.NOTES
+    Requires: PowerShell
 #>
 param(
     [string[]]$Extension,
@@ -48,13 +58,11 @@ if ($Extension) {
     }
 }
 
-# 2. 调用 lib/Directory.psm1 中的函数创建目录层级
-New-Directories -sourceDir $runtime.WorkDir -targetDir $runtime.TargetDir
-
 # 3. 遍历文件并复制
 $sourceDir = $runtime.WorkDir
 $targetDir = $runtime.TargetDir
 $copiedCount = 0
+$failedCount = 0
 
 Get-ChildItem -LiteralPath $sourceDir -File -Recurse | ForEach-Object {
     $sourceFile = $_
@@ -105,33 +113,41 @@ Get-ChildItem -LiteralPath $sourceDir -File -Recurse | ForEach-Object {
     # -- 过滤条件判断结束 --
 
     # 执行拷贝操作
+    $temporaryPath = $null
     try {
-        # 如果目标文件已存在，先删除
-        if (Test-Path -LiteralPath $targetFile) {
-            Remove-Item -LiteralPath $targetFile -Force
+        $targetParent = Split-Path -Path $targetFile -Parent
+        [void][IO.Directory]::CreateDirectory($targetParent)
+        $temporaryPath = Join-Path $targetParent ('.pw2401-' + [guid]::NewGuid().ToString('N') + '.tmp')
+        Copy-Item -LiteralPath $sourcePath -Destination $temporaryPath -ErrorAction Stop
+        if ((Get-Item -LiteralPath $temporaryPath -ErrorAction Stop).Length -ne $sourceFile.Length) {
+            throw "复制后大小不一致: $relativePath"
         }
-
-        # 拷贝文件
-        Copy-Item -LiteralPath $sourcePath -Destination $targetFile -Force
+        Complete-FileReplacement -TemporaryPath $temporaryPath -Destination $targetFile
         $copiedCount++
 
         # 如果开启了删除选项，则删除原文件
         if ($DeleteOriginal) {
-            Remove-Item -LiteralPath $sourcePath -Force
+            Remove-Item -LiteralPath $sourcePath -Force -ErrorAction Stop
         }
     }
     catch {
+        $failedCount++
         $errMsg = $_.Exception.Message
         Write-LogMessage "拷贝文件失败: $relativePath - $errMsg" -Level Error
     }
+    finally {
+        if ($temporaryPath -and [IO.File]::Exists($temporaryPath)) {
+            Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
+if ($failedCount -gt 0) {
+    throw "拷贝操作有 $failedCount 个文件失败；已完成 $copiedCount 个文件的复制。"
+}
 Write-LogMessage "拷贝目录操作完成！共拷贝 $copiedCount 个文件。" -Level Success
 if ($DeleteOriginal) {
     Write-LogMessage "已开启删除原始文件选项，符合条件的原始文件已被清理。" -Level Info
 }
 
-# 4. 清理目标目录中的空文件夹
-Write-LogMessage "正在清理目标目录中的空文件夹..." -Level Info
-Remove-EmptyDirectories -Path $runtime.TargetDir
-Write-LogMessage "空文件夹清理完成！" -Level Success
+# 只为匹配文件创建目录，无需预扫描或清理整棵目标目录树。

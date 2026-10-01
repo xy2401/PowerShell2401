@@ -9,11 +9,23 @@
        - 删除空文件夹。
        - 将冗余文件夹内的唯一子文件夹上移一层。如果目标位置已存在同名目录，则在新名字后追加 .move。
 
+.PARAMETER Depth
+    检查的精确目录深度。0 表示当前目录，1 表示直接子目录。
+
 .PARAMETER Delete
     删除检查到的绝对空文件夹。
 
 .PARAMETER MoveUp
     将冗余文件夹（仅包含单个子文件夹、无文件）内的子文件夹上移一层，并清理外层空壳。如果目标位置冲突，会加 .move 后缀。
+
+.EXAMPLE
+    # ExampleId: delete-empty-move-up
+    pw2401 dir-void -Depth 1 -Delete -MoveUp
+
+    清理一级子目录中的空目录，并上移冗余的单层子目录。
+
+.NOTES
+    Requires: PowerShell
 #>
 
 param(

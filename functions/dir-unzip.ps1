@@ -1,3 +1,28 @@
+<#
+.SYNOPSIS
+    批量解压指定深度目录中的压缩文件。
+
+.DESCRIPTION
+    扫描 ZIP、TAR.GZ 和 GZ 等压缩文件，在当前目录同级的 .unzip 目录中保持相对结构并解压内容。
+
+.PARAMETER Depth
+    扫描压缩文件的目录深度。1 表示当前目录。
+
+.PARAMETER IncludeBaseFolder
+    解压时保留以压缩包文件名命名的顶级目录。
+
+.PARAMETER Extensions
+    允许处理的压缩文件扩展名数组。
+
+.EXAMPLE
+    # ExampleId: zip-depth
+    pw2401 dir-unzip -Depth 1 -Extensions .zip
+
+    解压当前目录中的 ZIP 文件到同级 .unzip 目录。
+
+.NOTES
+    Requires: PowerShell
+#>
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [Parameter(HelpMessage = "处理路径的深度。默认 1 即仅当前目录的一级子目录，2 表示二级子目录，以此类推。")]

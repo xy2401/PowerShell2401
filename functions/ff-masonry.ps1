@@ -1,27 +1,55 @@
 <#
 .SYNOPSIS
-    使用 FFmpeg 实现瀑布流图片拼接。
-    将多张图片拼接成符合指定宽度和列数的瀑布流长图。
+    使用 FFmpeg 将多张图片拼接为瀑布流长图。
 
 .DESCRIPTION
-    该脚本扫描指定目录下的所有图片，根据图片原始比例计算缩放后的高度，
-    并动态生成瀑布流布局。可以通过命令行参数自定义输出的列数、画布宽度、间隙大小、背景颜色等。
-    它是从 scripts/ff_masonry.ps1 迁移而来的，并复用了项目中的模块。
+    扫描指定深度的图片目录，根据原始比例计算缩放和列布局，生成单张 JPEG 瀑布流图片。
+    支持智能排序、统一裁剪、文字标签、列反转、背景颜色和调试布局数据。
+
+.PARAMETER CanvasWidth
+    输出画布的总宽度，单位为像素。
+
+.PARAMETER ColumnCount
+    瀑布流列数。
+
+.PARAMETER ReverseColumn
+    将每一列中的图片顺序反转。
+
+.PARAMETER Tolerance
+    智能布局允许的高度容差系数。
+
+.PARAMETER Gap
+    图片之间的间距，单位为像素。
+
+.PARAMETER BackgroundColor
+    FFmpeg 支持的背景颜色名称或十六进制颜色。
+
+.PARAMETER ShowFileName
+    在图片上绘制源文件名。
+
+.PARAMETER FontSize
+    文件名文字大小。
 
 .PARAMETER Sort
-    文件名排序方式。'Smart'（数字顺序，默认）、'Name'（字母顺序）或 'VerticalRatio'（按缩放后的高度比例降序）。
-    [高级玩法] 关于 -Sort VerticalRatio：
-    选择按纵向比例 `VerticalRatio` 排序（通过高宽比算出最终实际占用高度并降序排列），将自动应用经典的贪心装箱堆叠算法（Bin Packing Heuristics - FFD / 最小加工时间 LPT）。
-    让特别长的竖图优先寻找最短列占坑，用小又扁的横图留到最后去当“填缝剂”。配合设置一定的 Tolerance 容差，
-    可以在不破坏局部横向阅读体验的情况下，极大地吸收生成图底部的“犬牙交错”高度差值。
+    排序方式：Smart、Name 或 VerticalRatio。
+
+.PARAMETER Depth
+    要处理的精确目录深度。0 表示当前目录。
+
+.PARAMETER CropSize
+    统一裁剪尺寸，可以为空、Auto 或 WidthxHeight 格式。
+
+.PARAMETER JpegQuality
+    FFmpeg JPEG 质量参数，数值越小质量越高。
 
 .EXAMPLE
-    pw2401 ff-masonry
-    使用默认参数运行，将会把当前目录下的图片拼成列数为 5、宽度 3000、白色背景的瀑布流。
+    # ExampleId: three-columns
+    pw2401 ff-masonry -ColumnCount 3 -CanvasWidth 960 -Gap 4
 
-.EXAMPLE
-    pw2401 ff-masonry -ColumnCount 3 -CanvasWidth 1920 -BackgroundColor "black" -Gap 10
-    将图片拼成 3 列，总宽度 1920 像素，背景设为黑色，图片间距 10 像素。
+    将当前目录中的测试图片拼成三列、总宽度 960 像素的瀑布流。
+
+.NOTES
+    Requires: ffmpeg, ffprobe
 #>
 
 [CmdletBinding()]
