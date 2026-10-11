@@ -8,20 +8,20 @@
     并动态生成瀑布流布局。可以通过命令行参数自定义输出的列数、画布宽度、间隙大小、背景颜色等。
 
 .EXAMPLE
-    .\Build.ps1
-    使用默认参数运行脚本，将会把当前目录下的图片拼成列数为 2、宽度 1024、白色背景的瀑布流。
+    .\standalone\ff_masonry.ps1
+    从项目根目录使用默认参数运行脚本，将当前目录下的图片拼成列数为 5、宽度 3000、白色背景的瀑布流。
 
 .EXAMPLE
-    .\Build.ps1 -ColumnCount 3 -CanvasWidth 1920 -BackgroundColor "black" -Gap 10
+    .\standalone\ff_masonry.ps1 -ColumnCount 3 -CanvasWidth 1920 -BackgroundColor "black" -Gap 10
     将图片拼成 3 列，总宽度 1920 像素，背景设为黑色，图片间距 10 像素。
 
 .EXAMPLE
-    .\Build.ps1 -CropSize "Auto"
+    .\standalone\ff_masonry.ps1 -CropSize "Auto"
     开启统一裁剪模式，自动计算文件夹内图片尺寸的众数作为裁剪比例，让图片堆叠更加整齐。
 
 .EXAMPLE
-    .\Build.ps1 -ShowFileName $false
-    隐藏图片上方默认绘制的文件名称条。
+    .\standalone\ff_masonry.ps1 -ShowFileName $false
+    隐藏图片上方的文件名称条。
 #>
 
 [CmdletBinding()]

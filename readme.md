@@ -36,13 +36,109 @@ pw2401 test -External # 同时执行 FFmpeg 等外部依赖示例
 
 测试数据和报告位于当前目录的 `target/pw2401-tests/`。所有已执行 case 无论通过还是失败都会保留，Skip 不创建空目录，原始 `tests/magika_basic` 素材不会被修改。
 
-`pw2401 test` 同时运行 `tests/TestRegression.ps1` 中的回归测试，覆盖复制失败、文件占用、EXIF 方向 2–8、分类一致性和未知媒体时长。文件安全测试分别验证默认 `Continue` 与严格 `Stop` 错误策略；结果保存在 `target/pw2401-tests/regressions/`。示例测试保持严格错误策略，PSD1 的 `Images` 与 `Media` 断言可检查实际宽高、EXIF 方向、媒体类型及最小时长。
+`pw2401 test` 同时运行 `tests/TestRegression.ps1` 中的回归测试，覆盖复制失败、文件占用、EXIF 方向 2–8、分类一致性和未知媒体时长，并自动运行 `tests/TestChromeLauncher.ps1` 验证 Chrome 实例启动器。Chrome 测试使用 `target/` 下的隔离目录和替代启动函数，不会打开浏览器或修改实际用户配置。文件安全测试分别验证默认 `Continue` 与严格 `Stop` 错误策略；结果保存在 `target/pw2401-tests/regressions/`。示例测试保持严格错误策略，PSD1 的 `Images` 与 `Media` 断言可检查实际宽高、EXIF 方向、媒体类型及最小时长。
 
 每个 case 的标准输出保存在 `stdout.txt`；PowerShell 序列化信息流使用原生的 `streams.clixml` 后缀，非 CLIXML 原始流保存为 `streams.txt`。这些流文件不等同于测试错误，测试结论以报告中的状态和断言为准。
 
 每个可测试命令由同目录的同名文件共同维护：`functions/<命令>.ps1` 保存实现、注释帮助和带稳定 `ExampleId` 的真实示例，`functions/<命令>.psd1` 声明 case 输入与预期输出。PSD1 由 PowerShell 原生读取，不包含可执行命令；测试引擎只提供复制文件、创建目录、创建文本文件和结果断言等通用能力。外部媒体测试使用仓库中的微型 `tests/fixtures/`，不会在配置文件里硬编码 FFmpeg 命令。
 
 GitHub Actions 在 Windows hosted runner 上执行文档一致性、纯 PowerShell 示例和 FFmpeg 外部示例。外部 job 安装 `ffmpeg-full`；缺少 `libsvtav1`、`libvmaf`、`av1_nvenc` 或 NVIDIA 运行能力时，对应用例记为 Skip，不会使工作流失败。每次测试报告作为 artifact 保留 7 天。
+
+### 4. 独立脚本
+
+`functions/` 中的命令通过 `pw2401` 入口调用；`standalone/` 中的脚本有自己的执行入口，可以直接通过 `pwsh -File` 运行。
+
+例如，从项目根目录运行 [standalone/ff_masonry.ps1](standalone/ff_masonry.ps1)：
+
+```powershell
+pwsh -NoProfile -File ./standalone/ff_masonry.ps1 -ColumnCount 3 -CanvasWidth 1920 -Gap 10
+```
+
+该脚本读取当前工作目录中的图片，需要 `ffmpeg` 和 `ffprobe` 在 PATH 中。处理其他目录时，先切换到素材目录，再用脚本的绝对路径运行。
+
+#### Chrome 实例启动器
+
+[standalone/chrome-profile.ps1](standalone/chrome-profile.ps1) 是面向 Windows、PowerShell 7 的单文件脚本，可以单独复制使用。首个参数是实例名，允许字母、数字、连字符和下划线，统一转为小写。每个实例具有独立的浏览器数据和可重复使用的启动配置。
+
+将 `standalone` 目录加入 PATH 后，可以在 PowerShell 中直接运行 `chrome-profile.ps1 work` 或 `chrome-profile.ps1 work -Try`。入口使用 `chrome-profile` 名称，便于与 Chrome 浏览器命令区分。
+
+从项目根目录执行：
+
+```powershell
+# 不带参数：显示简短用法及所有已保存 profile 的环境变量覆盖和完整启动命令
+pwsh -NoProfile -File ./standalone/chrome-profile.ps1
+
+# 创建或启动 work；自动复用已保存的参数、环境变量和程序路径
+pwsh -NoProfile -File ./standalone/chrome-profile.ps1 work
+
+# 保存或更新代理并启动；以后只输入 work 也会使用该代理
+pwsh -NoProfile -File ./standalone/chrome-profile.ps1 work --proxy-server=http://127.0.0.1:7890
+
+# 保存网址并启动；以后每次启动都会携带该网址
+pwsh -NoProfile -File ./standalone/chrome-profile.ps1 work https://example.com
+
+# 清空参数和网址并启动；也可以在后面提供替换后的新参数
+pwsh -NoProfile -File ./standalone/chrome-profile.ps1 work -ClearArgs
+pwsh -NoProfile -File ./standalone/chrome-profile.ps1 work -ClearArgs --incognito
+
+# 保存环境变量、删除指定覆盖项或清空所有覆盖项，然后启动
+pwsh -NoProfile -File ./standalone/chrome-profile.ps1 work -SetEnv 'NAME=value'
+pwsh -NoProfile -File ./standalone/chrome-profile.ps1 work -RemoveEnv NAME
+pwsh -NoProfile -File ./standalone/chrome-profile.ps1 work -ClearEnv
+
+# 保存自定义 Chrome 路径；重置后恢复自动查找
+pwsh -NoProfile -File ./standalone/chrome-profile.ps1 work -ExecutablePath 'D:\Apps\Chrome\chrome.exe'
+pwsh -NoProfile -File ./standalone/chrome-profile.ps1 work -ResetExecutable
+
+# 调试预览：先应用本次参数，再打印自定义环境变量设置和完整启动命令，不保存、不创建目录、不启动
+pwsh -NoProfile -File ./standalone/chrome-profile.ps1 work -Try
+pwsh -NoProfile -File ./standalone/chrome-profile.ps1 work -Try --proxy-server=http://127.0.0.1:8080 -SetEnv 'NAME=debug'
+pwsh -NoProfile -File ./standalone/chrome-profile.ps1 work -Try -ClearArgs --proxy-server=http://127.0.0.1:8080
+
+# 显示完整说明和示例
+pwsh -NoProfile -File ./standalone/chrome-profile.ps1 -Help
+```
+
+配置固定保存在 Windows 用户主目录的 `.pw2401/chrome.{Profile}/` 下，与运行脚本时的工作目录无关。实例 `work` 对应目录如下：
+
+```text
+~/.pw2401/chrome.work/
+├── launch.json    # UTF-8 启动配置，可手工编辑
+└── user-data/     # Chrome 用户数据目录
+```
+
+`launch.json` 示例：
+
+```json
+{
+  "executablePath": null,
+  "arguments": [
+    "--proxy-server=http://127.0.0.1:7890",
+    "https://example.com"
+  ],
+  "environment": {
+    "NAME": "value"
+  }
+}
+```
+
+- Chrome 开关使用 `--名称=值` 或 `--名称`；含空格时引用整个参数，例如 `'--user-agent=Work Browser'`。同名开关以本次值覆盖，其他开关保留；网址和文件路径也会保存，相同条目去重。配置里的每项都是一个完整参数，不拆词、不执行其中的代码。
+- `-ClearArgs` 只清空参数和网址，`-ClearEnv` 只清空环境变量覆盖，`-ResetExecutable` 只重置程序路径。组合操作先清除或重置，再删除指定环境变量覆盖，最后应用本次设置；这些操作都保留浏览器数据。
+- `-SetEnv`、`-RemoveEnv` 可以重复提供；`-SetEnv` 按第一个 `=` 分隔名称和值。环境变量继承当前进程，再叠加实例的覆盖项，仅影响 Chrome 及其子进程。删除覆盖项后恢复继承父进程的值。
+- 自定义程序路径保存为绝对路径；`executablePath` 为 `null` 时依次查找 PATH、Windows App Paths 注册项和常见安装位置。明确指定的路径失效时报告错误。
+- `-Try` 用于调试，可以放在实例名之后的任意位置。先读取保存的配置，再应用本次所有配置选项和 Chrome 参数；本次同名开关和环境变量覆盖旧值，其他设置保留。输出先列出自定义环境变量覆盖的 PowerShell 设置语句，再列出 Chrome 程序的绝对路径和全部启动参数，长值不截断。继承而未覆盖的环境变量不展开打印。所有变更只在内存中生效，打印的语句不会执行，不保存、不启动，新实例也不会创建目录。
+- 无参数运行时先显示几行简短用法和 `.pw2401/chrome.{Profile}` 目录模板，再按名称列出 `.pw2401/` 下的 `chrome.` 前缀目录对应的所有 profile，并逐个输出与 `<实例名> -Try` 相同的自定义环境变量设置和完整启动命令。仅有浏览器数据、缺少 `launch.json` 的 profile 按默认空配置预览。没有 profile 时显示提示，不创建目录；单个 profile 配置损坏或程序路径失效时显示原因，继续预览其他 profile。显式 `-Help` 显示完整说明和示例，不列出 profile。
+
+例如，`-Try -SetEnv 'NAME=debug' --proxy-server=http://127.0.0.1:8080` 的调试输出会包含以下形式的语句（实际路径和参数根据实例计算）：
+
+```powershell
+$env:NAME = 'debug'
+& 'C:\Program Files\Google\Chrome\Application\chrome.exe' '--user-data-dir=C:\Users\用户名\.pw2401\chrome.work\user-data' '--proxy-server=http://127.0.0.1:8080'
+```
+
+保存配置中的自定义环境变量也会列出；`-RemoveEnv` 或 `-ClearEnv` 删除的覆盖项不会再打印设置语句。Chrome 的代理仍通过 `--proxy-server` 等 Chrome 参数传入。
+
+最终启动命令先设置脚本管理的 `--user-data-dir`，再追加保存的用户参数；禁止通过用户参数覆盖该目录。若同一实例已在运行，Chrome 可能复用现有进程；修改参数或环境变量后，应完全关闭该实例再启动。`-Try` 显示的是本次准备启动的配置。
 
 ---
 

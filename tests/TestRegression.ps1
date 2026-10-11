@@ -94,6 +94,12 @@ function Get-QuadrantColors {
 }
 
 try {
+    Invoke-RegressionCase 'chrome-instance-launcher' {
+        $output = & (Join-Path $PSHOME 'pwsh.exe') -NoProfile -File (Join-Path $projectRoot 'tests/TestChromeLauncher.ps1') -WorkDir $WorkDir 2>&1
+        foreach ($line in $output) { $global:PwRegressionLog.Add([string]$line) }
+        Assert-Regression ($LASTEXITCODE -eq 0) ("Chrome launcher regressions failed: " + ($output -join [Environment]::NewLine))
+    }
+
     foreach ($preference in @('Continue', 'Stop')) {
         Invoke-RegressionCase "copy-failure-$preference" {
             $ErrorActionPreference = $preference
